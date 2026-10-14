@@ -1,0 +1,16 @@
+{
+  "name": "pi-rich-renderer",
+  "version": "0.1.0",
+  "description": "Rich block viewer, copier and exporter for Pi Coding Agent",
+  "main": "src/extension-entrypoint.ts",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*",
+    "vitest": "^2.0.0",
+    "typescript": "^5.0.0"
+  }
+}
