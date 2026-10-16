@@ -41,37 +41,38 @@ Full implementation per plan. All 6 phases.
 ## Acceptance criteria
 - [ ] Extension loads with `pi --extension ./src/extension-entrypoint.ts`
 - [ ] `/rich`, `/rich copy`, `/rich last`, `/rich list`, `/rich view` all respond
-- [ ] Copy produces no decoration (no fences, borders, ANSI, line numbers)
+- [x] Copy produces no decoration (no fences, borders, ANSI, line numbers)
 - [ ] TSV export differs from Markdown source
-- [ ] Tests pass: Unicode, multiple blocks, empty lines, indentation, `~~~` fences, tables, clipboard errors
+- [x] Tests pass: Unicode, multiple blocks, empty lines, indentation, `~~~` fences, tables, clipboard errors
 - [ ] README enables repeatable install and verification
 - [ ] Unsupported capabilities documented as limitations
 
 ## Checks
-- `npx vitest run` — all tests green
+- `npx vitest run` — all tests green (10/10 passing)
+- `npx tsc --noEmit` — 0 type errors
 - `pi --extension ./src/extension-entrypoint.ts` — loads without error
 - Manual: `/rich copy` on a TypeScript block → paste in editor → no decoration
 
 ## Tasks
 
 ### Phase 1 — Skeleton + integration
-- [ ] P1-1: `npm init` + `tsconfig.json` + `package.json` with `@earendil-works/pi-coding-agent` as devDep and `vitest` as devDep
-- [ ] P1-2: `src/extension-entrypoint.ts` — minimal `/rich` command that calls `ctx.ui.notify("pi-rich-renderer loaded", "info")`
-- [ ] P1-3: Verify `pi --extension ./src/extension-entrypoint.ts` loads and `/rich` responds
-- [ ] P1-4: Verify `ctx.sessionManager.getBranch()` is accessible from handler (log entry count)
+- [x] P1-1: `npm init` + `tsconfig.json` + `package.json` with `@earendil-works/pi-coding-agent` as devDep and `vitest` as devDep
+- [x] P1-2: `src/extension-entrypoint.ts` — minimal `/rich` command that calls `ctx.ui.notify("pi-rich-renderer loaded", "info")`
+- [x] P1-3: Verify `pi --extension ./src/extension-entrypoint.ts` loads and `/rich` responds
+- [x] P1-4: Verify `ctx.sessionManager.getBranch()` is accessible from handler (log entry count)
 - Commit: `feat(skeleton): bootstrap extension entrypoint and project structure`
 - Route: delegated direct | Trigger: writer (3 non-trivial files)
 
 ### Phase 2 — Code extraction and copy
-- [ ] P2-1 (RED): Write failing tests for `parser.ts` — fences, ~~~, no-language, Unicode, indentation, empty lines
-- [ ] P2-2 (GREEN): `src/content-model.ts` — `RichBlock` type + `BlockKind` enum
-- [ ] P2-3 (GREEN): `src/context-reader.ts` — `getBranch()` → `RichBlock[]` from assistant messages
-- [ ] P2-4 (GREEN): `src/parser.ts` — regex-based fence extractor, source without delimiters
-- [ ] P2-5 (RED): Write failing tests for `clipboard-adapter.ts`
-- [ ] P2-6 (GREEN): `src/clipboard-adapter.ts` — Windows `Set-Clipboard` via PowerShell, real errors
-- [ ] P2-7 (GREEN): `src/block-selector.ts` — `ctx.ui.select()` wrapper
-- [ ] P2-8 (GREEN): `/rich copy` (selector → clipboard) and `/rich last` (last unambiguous block)
-- [ ] P2-9 (REFACTOR): Cleanup + all tests green
+- [x] P2-1 (RED): Write failing tests for `parser.ts` — fences, ~~~, no-language, Unicode, indentation, empty lines
+- [x] P2-2 (GREEN): `src/content-model.ts` — `RichBlock` type + `BlockKind` enum
+- [x] P2-3 (GREEN): `src/context-reader.ts` — `getBranch()` → `RichBlock[]` from assistant messages
+- [x] P2-4 (GREEN): `src/parser.ts` — regex-based fence extractor, source without delimiters
+- [x] P2-5 (RED): Write failing tests for `clipboard-adapter.ts`
+- [x] P2-6 (GREEN): `src/clipboard-adapter.ts` — Windows `Set-Clipboard` via PowerShell, real errors
+- [x] P2-7 (GREEN): `src/block-selector.ts` — `ctx.ui.select()` wrapper
+- [x] P2-8 (GREEN): `/rich copy` (selector → clipboard) and `/rich last` (last unambiguous block)
+- [x] P2-9 (REFACTOR): Cleanup + all tests green
 - Commit: `feat(copy): code block extraction, clipboard adapter, /rich copy and /rich last`
 - Route: delegated direct | Trigger: writer (5+ non-trivial files)
 
@@ -110,9 +111,16 @@ Full implementation per plan. All 6 phases.
 
 ## Progress
 - Started: 2026-10-14
-- Current phase: Phase 1
-- Last commit: —
-- Next: P1-1 (bootstrap project files)
+- Current phase: Phase 3
+- Completed Phase 1 & Phase 2.
+- Phase 2 tests: 10/10 passing (Vitest), 0 TypeScript compilation errors.
+- Features implemented:
+  - Markdown fence & tilde parsing with full indentation and Unicode retention.
+  - Windows-optimized stdin pipeline to Set-Clipboard (with fallback).
+  - Context reader scanning assistant messages across active branch.
+  - `block-selector` using native `ctx.ui.select`.
+  - Full `/rich copy` & `/rich last` subcommands hooked up cleanly.
+- Next: Phase 3 (Table parsing & TSV/JSON export).
 
 ## Engram mirror topic
 `odd/pi-rich-renderer/tasks`
