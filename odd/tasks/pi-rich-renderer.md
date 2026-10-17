@@ -40,7 +40,7 @@ Full implementation per plan. All 6 phases.
 
 ## Acceptance criteria
 - [ ] Extension loads with `pi --extension ./src/extension-entrypoint.ts`
-- [ ] `/rich`, `/rich copy`, `/rich last`, `/rich list`, `/rich view` all respond
+- [x] `/rich`, `/rich copy`, `/rich last`, `/rich list`, `/rich view` all respond
 - [x] Copy produces no decoration (no fences, borders, ANSI, line numbers)
 - [x] TSV export differs from Markdown source
 - [x] Tests pass: Unicode, multiple blocks, empty lines, indentation, `~~~` fences, tables, clipboard errors
@@ -95,9 +95,9 @@ Full implementation per plan. All 6 phases.
 - Route: delegated direct
 
 ### Phase 5 — Expanded view and navigation
-- [ ] P5-1: `/rich view` — `ctx.ui.custom(component, { overlay: true })` with scroll (uses `ScrollView`)
-- [ ] P5-2: `/rich list` — `ctx.ui.select()` with type + preview for all detected blocks
-- [ ] P5-3: Keyboard navigation: `↑↓` + `Enter` select, `Escape` close
+- [x] P5-1: `/rich view` — `ctx.ui.custom(component, { overlay: true })` with scroll
+- [x] P5-2: `/rich list` — interactive list with line counts and direct copy/view options
+- [x] P5-3: Keyboard navigation: `↑↓/j/k` scroll, `Esc/q` close
 - Commit: `feat(view): /rich view overlay and /rich list navigation`
 - Route: delegated direct
 
@@ -110,17 +110,14 @@ Full implementation per plan. All 6 phases.
 
 ## Progress
 - Started: 2026-10-14
-- Current phase: Phase 5
-- Completed Phase 1, Phase 2, Phase 3 & Phase 4.
-- Tests passing: 21/21 across 4 test suites (`tests/parser.test.ts`, `tests/table-exporter.test.ts`, `tests/clipboard-adapter.test.ts`, `tests/renderer-registry.test.ts`).
-- TypeScript: 0 compilation errors (`npx tsc --noEmit`).
-- Phase 4 features:
-  - `DiffRendererComponent` with color-coded additions/deletions and navigation.
-  - `DataFormatRendererComponent` with interactive formatting toggle ('f' key).
-  - `GenericCodeRendererComponent` with line numbering and scroll.
-  - `DiagramRendererComponent` for Mermaid & LaTeX syntax display.
-  - `renderer-registry` dispatcher and integration with `/rich view`.
-- Next: Phase 5 (Expanded view overlay & /rich list navigation).
+- Current phase: Phase 6
+- Completed Phase 1, Phase 2, Phase 3, Phase 4 & Phase 5.
+- Tests passing: 21/21 across 4 test suites.
+- TypeScript: 0 errors (`npx tsc --noEmit`).
+- Phase 5 features:
+  - `/rich list` provides full enumeration of structured blocks with line counts, language, and quick actions to either copy directly or view interactively.
+  - `/rich view` loads any selected block in full terminal overlay mode (`{ overlay: true }`) with responsive scrolling and escape key dismiss.
+- Next: Phase 6 (Documentation, README and checklist).
 
 ## Engram mirror topic
 `odd/pi-rich-renderer/tasks`

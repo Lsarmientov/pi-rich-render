@@ -1,6 +1,14 @@
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import type { RichBlock } from "./content-model.js";
 
+export function formatBlockOption(b: RichBlock, idx: number): string {
+  const firstLine = b.source.trim().split("\n")[0] ?? "";
+  const preview = firstLine.length > 50 ? firstLine.slice(0, 47) + "..." : firstLine;
+  const kindLabel = b.language ? `[${b.kind}:${b.language}]` : `[${b.kind}]`;
+  const lineCount = b.source.split(/\r?\n/).length;
+  return `#${idx + 1} ${kindLabel} (${lineCount} lines) - ${preview}`;
+}
+
 /**
  * Prompts the user to pick one block among several candidates using Pi's ctx.ui.select.
  */
@@ -17,12 +25,7 @@ export async function selectBlock(
     return blocks[0];
   }
 
-  const options = blocks.map((b, idx) => {
-    const firstLine = b.source.trim().split("\n")[0] ?? "";
-    const preview = firstLine.length > 40 ? firstLine.slice(0, 37) + "..." : firstLine;
-    const kindLabel = b.language ? `[${b.kind}:${b.language}]` : `[${b.kind}]`;
-    return `#${idx + 1} ${kindLabel} ${preview}`;
-  });
+  const options = blocks.map((b, idx) => formatBlockOption(b, idx));
 
   const selectedStr = await ctx.ui.select(title, options);
   if (!selectedStr) {

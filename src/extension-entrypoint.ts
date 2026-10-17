@@ -1,9 +1,8 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { getContextBlocks, getLastContextBlock } from "./context-reader.js";
-import { selectBlock } from "./block-selector.js";
+import { selectBlock, formatBlockOption } from "./block-selector.js";
 import { copyToClipboard } from "./clipboard-adapter.js";
 import { tableToTSV, tableToJSON } from "./exporters/table-exporter.js";
-import { TableRendererComponent } from "./renderers/table-renderer.js";
 import { createRendererForBlock } from "./renderer-registry.js";
 
 export default function (pi: ExtensionAPI) {
@@ -33,7 +32,6 @@ export default function (pi: ExtensionAPI) {
 
           let textToCopy = target.source;
 
-          // If block is a table, ask user which format they want to export
           if (target.kind === "table") {
             const formatOptions = ["1. Markdown (Source)", "2. TSV (Spreadsheets / Excel)", "3. JSON (Structured data)"];
             const choice = await ctx.ui.select("Choose export format for table:", formatOptions);
@@ -96,9 +94,59 @@ export default function (pi: ExtensionAPI) {
           break;
         }
 
-        case "list":
-          ctx.ui.notify("/rich list — coming in Phase 5", "info");
+        case "list": {
+          const blocks = getContextBlocks(ctx);
+          if (blocks.length === 0) {
+            ctx.ui.notify("No structured blocks found in current context.", "info");
+            return;
+          }
+
+          const options = blocks.map((b, idx) => formatBlockOption(b, idx));
+          const selected = await ctx.ui.select(
+            `Found ${blocks.length} structured blocks. Select one to view or copy:`,
+            options
+          );
+
+          if (!selected) return;
+
+          const match = selected.match(/^#(\d+)/);
+          if (!match) return;
+          const chosen = blocks[parseInt(match[1], 10) - 1];
+          if (!chosen) return;
+
+          const action = await ctx.ui.select(`Block #${match[1]} selected. Choose action:`, [
+            "1. Copy to clipboard",
+            "2. Open expanded preview (TUI view)",
+          ]);
+
+          if (action?.includes("Copy")) {
+            let text = chosen.source;
+            if (chosen.kind === "table") {
+              const fmt = await ctx.ui.select("Choose export format:", [
+                "1. Markdown (Source)",
+                "2. TSV (Spreadsheets)",
+                "3. JSON",
+              ]);
+              if (fmt?.includes("TSV")) text = tableToTSV(chosen.source);
+              else if (fmt?.includes("JSON")) {
+                const j = tableToJSON(chosen.source);
+                if (j) text = j;
+              }
+            }
+            await copyToClipboard(text);
+            ctx.ui.notify(`Copied block #${match[1]} to clipboard!`, "info");
+          } else if (action?.includes("preview")) {
+            if (ctx.mode !== "tui") {
+              ctx.ui.notify("Interactive preview requires TUI mode.", "warning");
+              return;
+            }
+            await ctx.ui.custom<void>(
+              (_tui, theme, _kb, done) => createRendererForBlock(chosen, theme, () => done()),
+              { overlay: true }
+            );
+          }
           break;
+        }
 
         case "view": {
           const blocks = getContextBlocks(ctx);
@@ -107,7 +155,7 @@ export default function (pi: ExtensionAPI) {
             return;
           }
 
-          const target = await selectBlock(ctx, blocks, "Select block to view:");
+          const target = await selectBlock(ctx, blocks, "Select block to view in expanded overlay:");
           if (!target) return;
 
           if (ctx.mode !== "tui") {
@@ -115,9 +163,10 @@ export default function (pi: ExtensionAPI) {
             return;
           }
 
-          await ctx.ui.custom<void>((_tui, theme, _kb, done) => {
-            return createRendererForBlock(target, theme, () => done());
-          });
+          await ctx.ui.custom<void>(
+            (_tui, theme, _kb, done) => createRendererForBlock(target, theme, () => done()),
+            { overlay: true }
+          );
           break;
         }
 
@@ -126,8 +175,8 @@ export default function (pi: ExtensionAPI) {
             "pi-rich-renderer — available commands:",
             "  /rich copy   Select a block from conversation and copy clean code/table",
             "  /rich last   Copy the most recent block directly (with table export formats)",
-            "  /rich list   List all detected blocks in context",
-            "  /rich view   Open expanded interactive view of selected table or code",
+            "  /rich list   List all detected blocks and choose to view or copy",
+            "  /rich view   Open expanded interactive overlay of selected block",
           ].join("\n");
           ctx.ui.notify(help, "info");
         }
