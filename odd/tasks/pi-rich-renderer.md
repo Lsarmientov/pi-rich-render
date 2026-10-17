@@ -48,7 +48,7 @@ Full implementation per plan. All 6 phases.
 - [ ] Unsupported capabilities documented as limitations
 
 ## Checks
-- `npx vitest run` — all tests green (16/16 passing)
+- `npx vitest run` — all tests green (21/21 passing)
 - `npx tsc --noEmit` — 0 type errors
 - `pi --extension ./src/extension-entrypoint.ts` — loads without error
 - Manual: `/rich copy` on a TypeScript block → paste in editor → no decoration
@@ -86,13 +86,12 @@ Full implementation per plan. All 6 phases.
 - Route: delegated direct
 
 ### Phase 4 — Remaining formats
-- [ ] P4-1: `src/renderers/diff-renderer.ts` — copy without ANSI colors
-- [ ] P4-2: `src/renderers/json-yaml-xml-renderer.ts` — readable display; copy original; format as explicit action
-- [ ] P4-3: `src/renderers/list-renderer.ts` — hierarchy, checkboxes, order
-- [ ] P4-4: `src/renderers/mermaid-renderer.ts` — source always accessible; preview if viable
-- [ ] P4-5: `src/renderers/latex-renderer.ts` — source textual access
-- [ ] P4-6: `src/renderer-registry.ts` — dispatch by kind
-- Commit: `feat(formats): diff, json/yaml/xml, list, mermaid, latex renderers`
+- [x] P4-1: `src/renderers/diff-renderer.ts` — visual diff colorization without altering raw source
+- [x] P4-2: `src/renderers/json-yaml-xml-renderer.ts` — readable display; toggle format (f key); copy original
+- [x] P4-3: `src/renderers/code-renderer.ts` — code & list display with line numbers and scrolling
+- [x] P4-4: `src/renderers/diagram-renderer.ts` — Mermaid and LaTeX raw sources accessible with scrolling
+- [x] P4-5: `src/renderer-registry.ts` — dispatch by kind
+- Commit: `feat(formats): diff, json/yaml/xml, list, mermaid, latex renderers and registry`
 - Route: delegated direct
 
 ### Phase 5 — Expanded view and navigation
@@ -111,17 +110,17 @@ Full implementation per plan. All 6 phases.
 
 ## Progress
 - Started: 2026-10-14
-- Current phase: Phase 4
-- Completed Phase 1, Phase 2 & Phase 3.
-- Tests passing: 16/16 across 3 test suites (`tests/parser.test.ts`, `tests/table-exporter.test.ts`, `tests/clipboard-adapter.test.ts`).
+- Current phase: Phase 5
+- Completed Phase 1, Phase 2, Phase 3 & Phase 4.
+- Tests passing: 21/21 across 4 test suites (`tests/parser.test.ts`, `tests/table-exporter.test.ts`, `tests/clipboard-adapter.test.ts`, `tests/renderer-registry.test.ts`).
 - TypeScript: 0 compilation errors (`npx tsc --noEmit`).
-- Phase 3 features:
-  - Table parsing in `src/parser.ts` outside fenced intervals.
-  - TSV export (`tableToTSV`) for spreadsheets.
-  - Conditional JSON export (`tableToJSON`), guarded against duplicate/missing headers.
-  - Aligned table visualizer component in `src/renderers/table-renderer.ts` with arrow key / hjkl navigation.
-  - Interactive selection prompt for table export formats (Markdown / TSV / JSON) in `/rich copy` and `/rich last`.
-- Next: Phase 4 (diff, json/yaml/xml, list, mermaid, latex renderers and renderer-registry).
+- Phase 4 features:
+  - `DiffRendererComponent` with color-coded additions/deletions and navigation.
+  - `DataFormatRendererComponent` with interactive formatting toggle ('f' key).
+  - `GenericCodeRendererComponent` with line numbering and scroll.
+  - `DiagramRendererComponent` for Mermaid & LaTeX syntax display.
+  - `renderer-registry` dispatcher and integration with `/rich view`.
+- Next: Phase 5 (Expanded view overlay & /rich list navigation).
 
 ## Engram mirror topic
 `odd/pi-rich-renderer/tasks`

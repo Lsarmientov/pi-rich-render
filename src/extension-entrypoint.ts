@@ -4,6 +4,7 @@ import { selectBlock } from "./block-selector.js";
 import { copyToClipboard } from "./clipboard-adapter.js";
 import { tableToTSV, tableToJSON } from "./exporters/table-exporter.js";
 import { TableRendererComponent } from "./renderers/table-renderer.js";
+import { createRendererForBlock } from "./renderer-registry.js";
 
 export default function (pi: ExtensionAPI) {
   pi.on("session_start", (_event, ctx) => {
@@ -114,13 +115,9 @@ export default function (pi: ExtensionAPI) {
             return;
           }
 
-          if (target.kind === "table") {
-            await ctx.ui.custom<void>((_tui, theme, _kb, done) => {
-              return new TableRendererComponent(target.source, theme, () => done());
-            });
-          } else {
-            ctx.ui.notify(`View for ${target.kind} blocks will be enhanced in Phase 4/5.`, "info");
-          }
+          await ctx.ui.custom<void>((_tui, theme, _kb, done) => {
+            return createRendererForBlock(target, theme, () => done());
+          });
           break;
         }
 
