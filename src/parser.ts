@@ -50,44 +50,94 @@ function resolveKind(lang?: string): BlockKind {
   return "code";
 }
 
+interface BlockInterval {
+  start: number;
+  end: number;
+  block: RichBlock;
+}
+
 /**
- * Parses markdown text to extract fenced code blocks faithfully,
+ * Parses markdown text to extract fenced code blocks and markdown tables faithfully,
  * preserving internal formatting, Unicode, indentation and empty lines.
  */
 export function parseMarkdownBlocks(markdown: string, messageId?: string): RichBlock[] {
-  const blocks: RichBlock[] = [];
-  if (!markdown) return blocks;
+  if (!markdown) return [];
 
-  // Regex matching code blocks with variable fence length (``` or ~~~, 3 or more chars)
-  // ^([`~]{3,})([^\n]*)\n([\s\S]*?)\n\1$
+  const intervals: BlockInterval[] = [];
+
+  // 1. Extract fenced code blocks first
   const fenceRegex = /^(?:\r?\n)?([`~]{3,})([^\r\n]*)\r?\n([\s\S]*?)\r?\n\1(?:\r?\n|$)/gm;
-
   let match: RegExpExecArray | null;
-  let ordinal = 0;
 
   while ((match = fenceRegex.exec(markdown)) !== null) {
     const rawInfo = (match[2] ?? "").trim();
-    // In info string, first token is often the language, followed by optional title or metadata
     const infoTokens = rawInfo.split(/\s+/).filter(Boolean);
     const language = infoTokens[0] || undefined;
     const title = infoTokens.slice(1).join(" ") || undefined;
     const source = match[3] ?? "";
-
     const kind = resolveKind(language);
 
-    blocks.push({
-      id: `${messageId ?? "msg"}-${ordinal}`,
-      kind,
-      source,
-      language,
-      title,
-      sourceMessageId: messageId,
-      ordinal,
-      capabilities: getCapabilities(kind),
+    intervals.push({
+      start: match.index,
+      end: fenceRegex.lastIndex,
+      block: {
+        id: "",
+        kind,
+        source,
+        language,
+        title,
+        sourceMessageId: messageId,
+        ordinal: 0,
+        capabilities: getCapabilities(kind),
+      },
     });
-
-    ordinal++;
   }
 
-  return blocks;
+  // 2. Extract markdown tables outside fenced intervals
+  // A table starts with a header row, followed by delimiter row (|---|:---:|---:|), followed by optional rows
+  const tableRegex = /((?:^[ \t]*\|.+?\|[ \t]*(?:\r?\n|$)){2,})/gm;
+
+  while ((match = tableRegex.exec(markdown)) !== null) {
+    const start = match.index;
+    const end = tableRegex.lastIndex;
+
+    // Check if table overlaps with any fenced code block
+    const isInsideFence = intervals.some(
+      (inv) => (start >= inv.start && start < inv.end) || (end > inv.start && end <= inv.end)
+    );
+    if (isInsideFence) continue;
+
+    const rawTable = match[0].trim();
+    const lines = rawTable.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+
+    if (lines.length >= 2) {
+      const delimiterLine = lines[1];
+      // Delimiter row verification
+      if (/^\|?[\s:\-|]+\|?$/.test(delimiterLine) && delimiterLine.includes("-")) {
+        intervals.push({
+          start,
+          end,
+          block: {
+            id: "",
+            kind: "table",
+            source: rawTable,
+            language: "markdown",
+            title: undefined,
+            sourceMessageId: messageId,
+            ordinal: 0,
+            capabilities: getCapabilities("table"),
+          },
+        });
+      }
+    }
+  }
+
+  // Sort all extracted blocks by occurrence in document
+  intervals.sort((a, b) => a.start - b.start);
+
+  return intervals.map((inv, index) => {
+    inv.block.id = `${messageId ?? "msg"}-${index}`;
+    inv.block.ordinal = index;
+    return inv.block;
+  });
 }

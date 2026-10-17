@@ -42,13 +42,13 @@ Full implementation per plan. All 6 phases.
 - [ ] Extension loads with `pi --extension ./src/extension-entrypoint.ts`
 - [ ] `/rich`, `/rich copy`, `/rich last`, `/rich list`, `/rich view` all respond
 - [x] Copy produces no decoration (no fences, borders, ANSI, line numbers)
-- [ ] TSV export differs from Markdown source
+- [x] TSV export differs from Markdown source
 - [x] Tests pass: Unicode, multiple blocks, empty lines, indentation, `~~~` fences, tables, clipboard errors
 - [ ] README enables repeatable install and verification
 - [ ] Unsupported capabilities documented as limitations
 
 ## Checks
-- `npx vitest run` — all tests green (10/10 passing)
+- `npx vitest run` — all tests green (16/16 passing)
 - `npx tsc --noEmit` — 0 type errors
 - `pi --extension ./src/extension-entrypoint.ts` — loads without error
 - Manual: `/rich copy` on a TypeScript block → paste in editor → no decoration
@@ -77,11 +77,11 @@ Full implementation per plan. All 6 phases.
 - Route: delegated direct | Trigger: writer (5+ non-trivial files)
 
 ### Phase 3 — Tables
-- [ ] P3-1 (RED): Failing tests for table detection, TSV export, JSON conditional export
-- [ ] P3-2 (GREEN): Extend `parser.ts` for Markdown tables `| col |`
-- [ ] P3-3 (GREEN): `src/renderers/table-renderer.ts` — aligned columns, `ctx.ui.custom()`
-- [ ] P3-4 (GREEN): `src/exporters/table-exporter.ts` — Markdown source + TSV; JSON only when unambiguous
-- [ ] P3-5 (REFACTOR): Edge cases (empty cells, internal pipes, L/C/R alignment)
+- [x] P3-1 (RED): Failing tests for table detection, TSV export, JSON conditional export
+- [x] P3-2 (GREEN): Extend `parser.ts` for Markdown tables `| col |`
+- [x] P3-3 (GREEN): `src/renderers/table-renderer.ts` — aligned columns, `ctx.ui.custom()`
+- [x] P3-4 (GREEN): `src/exporters/table-exporter.ts` — Markdown source + TSV; JSON only when unambiguous
+- [x] P3-5 (REFACTOR): Edge cases (empty cells, internal pipes, L/C/R alignment)
 - Commit: `feat(tables): table detection, TSV/JSON export, table renderer`
 - Route: delegated direct
 
@@ -111,16 +111,17 @@ Full implementation per plan. All 6 phases.
 
 ## Progress
 - Started: 2026-10-14
-- Current phase: Phase 3
-- Completed Phase 1 & Phase 2.
-- Phase 2 tests: 10/10 passing (Vitest), 0 TypeScript compilation errors.
-- Features implemented:
-  - Markdown fence & tilde parsing with full indentation and Unicode retention.
-  - Windows-optimized stdin pipeline to Set-Clipboard (with fallback).
-  - Context reader scanning assistant messages across active branch.
-  - `block-selector` using native `ctx.ui.select`.
-  - Full `/rich copy` & `/rich last` subcommands hooked up cleanly.
-- Next: Phase 3 (Table parsing & TSV/JSON export).
+- Current phase: Phase 4
+- Completed Phase 1, Phase 2 & Phase 3.
+- Tests passing: 16/16 across 3 test suites (`tests/parser.test.ts`, `tests/table-exporter.test.ts`, `tests/clipboard-adapter.test.ts`).
+- TypeScript: 0 compilation errors (`npx tsc --noEmit`).
+- Phase 3 features:
+  - Table parsing in `src/parser.ts` outside fenced intervals.
+  - TSV export (`tableToTSV`) for spreadsheets.
+  - Conditional JSON export (`tableToJSON`), guarded against duplicate/missing headers.
+  - Aligned table visualizer component in `src/renderers/table-renderer.ts` with arrow key / hjkl navigation.
+  - Interactive selection prompt for table export formats (Markdown / TSV / JSON) in `/rich copy` and `/rich last`.
+- Next: Phase 4 (diff, json/yaml/xml, list, mermaid, latex renderers and renderer-registry).
 
 ## Engram mirror topic
 `odd/pi-rich-renderer/tasks`
