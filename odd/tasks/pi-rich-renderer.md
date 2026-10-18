@@ -116,11 +116,11 @@
    ### F2 -- Clipboard and copy UX (Size: M)
    Goal: copying that works on Windows, macOS, Linux and remote/SSH sessions.
    Tasks:
-   - [ ] F2.1 Extend `src/clipboard-adapter.ts`: Windows (PowerShell `Set-Clipboard`/`clip`), macOS (`pbcopy`), Linux (`wl-copy`, then `xclip
+   - [x] F2.1 Extend `src/clipboard-adapter.ts`: Windows (PowerShell `Set-Clipboard`/`clip`), macOS (`pbcopy`), Linux (`wl-copy`, then `xclip
  -selection clipboard`), each behind an availability probe; preserve the plain-text contract.
-   - [ ] F2.2 OSC 52 fallback: base64-encode and emit the `ESC ] 52 ; c ; <base64> BEL` sequence; make it selectable or automatic when running over
+   - [x] F2.2 OSC 52 fallback: base64-encode and emit the `ESC ] 52 ; c ; <base64> BEL` sequence; make it selectable or automatic when running over
  SSH / when `PI_CLIPBOARD_OSC52` semantics apply (`docs/environment-variables.md:91`); document which terminals must allow it.
-   - [ ] F2.3 Unit tests: adapter-selection matrix (mocked runner), OSC 52 encoding vectors, failure paths (no clipboard tool -> clear, actionable
+   - [x] F2.3 Unit tests: adapter-selection matrix (mocked runner), OSC 52 encoding vectors, failure paths (no clipboard tool -> clear, actionable
  error).
    - [ ] F2.4 Manual verification on the primary OS; for remote/SSH verify or explicitly record as unverified.
    Acceptance: new tests green (RED first); copy verified on Windows; behavior documented in the README (Spanish).
@@ -182,7 +182,7 @@
    | --- | --- | --- |
    | F0 | in progress (F0.4 open) | `npm test` 27/27 (5 files); `npx tsc --noEmit` 0 errors; `npm run build` emits `dist/index.js` (27,811 B) + `dist/src/extension-entrypoint.d.ts` (119 B); `esbuild ^0.28.2` added as a direct devDependency; clean `npm ci` path green (163 packages) |
    | F1 | done | `docs/spike-render-hooks.md` — verdict INLINE-OK for text/ANSI block transformation (hook `registerMarkdownTransformer`, typings-only, absent from `docs/*.md`); interactive affordances OVERLAY-ONLY (transformer returns `string`). |
-   | F2 | not started | |
+   | F2 | in progress (F2.4 open) | Per-OS selection with availability probes (powershell/clip, pbcopy, wl-copy/xclip); OSC 52 fallback (`ESC ]52;c;<base64> BEL`) gated on `PI_CLIPBOARD_OSC52` or SSH and only when no local tool is found; 17 deterministic clipboard tests with injected runner/probe/emit; `/rich list` copy errors now notify instead of rejecting unhandled; README documents the three OS paths and the OSC 52 caveat. |
    | F3 | not started | |
    | F4 | not started | |
    | F5 | not started | |
@@ -205,3 +205,4 @@
    - L4: F0 resumed from an uncommitted partial state: build script and main/types already rewritten, esbuild resolving only transitively through vite, no doc evidence. F0.1-F0.3 completed and verified; F0.4 still open pending an interactive pi --extension load check. README install flows (jiti dev mode and symlink) stay valid; the shipped build is F5 work.
    - L5 (user request, verbatim): "ok porfa ya funciona el agente inicia el desarrollo"
    - L6: F1 closed with evidence. `registerMarkdownTransformer` transforms user and assistant markdown pre-render and is used by Pi core for its mermaid blocks, so inline text transformation is supported; it returns a string, so copy buttons and mouse targets remain overlay-only. Inline code/table/diff affordances are deferred to a v0.3 candidate with its own spec.
+   - L7: F2.1-F2.3 delivered with RED-first evidence (16 clipboard tests failed before the implementation). A structural read-back then found four defects, fixed in the same unit: an explicit `PI_CLIPBOARD_OSC52` false value now vetoes SSH auto-detection, every clipboard test injects its own env and emit spy, and the README no longer overstates the OSC 52 opt-in or the suite coverage. F2.4 stays open.

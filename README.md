@@ -42,6 +42,10 @@ Copy-Item -Recurse "c:\Daniel\Proyectos\pi-rich-render" ".pi\extensions\pi-rich-
 | `/rich list` | Enumera todos los bloques detectados con tipo, lenguaje y conteo de líneas, permitiendo copiar o abrir preview directamente. |
 | `/rich view` | Abre una vista temporal ampliada en overlay dentro de la TUI (`{ overlay: true }`) con scroll vertical u horizontal y navegación por teclado. |
 
+### Portapapeles
+
+Windows usa PowerShell `Set-Clipboard` y recurre a `clip` si no está disponible; macOS usa `pbcopy`; Linux usa `wl-copy` o `xclip`. Si no se encuentra una herramienta, la copia falla con un error claro. Como alternativa cuando no se encuentra una herramienta local, OSC 52 se usa si `PI_CLIPBOARD_OSC52=1` o si la sesión se ejecuta por SSH. OSC 52 depende de que la terminal lo permita; algunas terminales lo desactivan. El texto copiado sigue siendo texto plano: sin fences, ANSI ni bordes.
+
 ---
 
 ## 📊 Capacidades por Tipo de Bloque
@@ -72,7 +76,7 @@ El proyecto cuenta con una suite completa de pruebas unitarias con **Vitest**:
 ```bash
 npm test
 ```
-*Cubre: fences con y sin lenguaje, delimitadores de tildes `~~~`, Unicode y emojis, bloques múltiples, tablas con pipes escapados `\|`, exportaciones TSV/JSON condicionales y adaptador de portapapeles de Windows.*
+*Cubre: fences con y sin lenguaje, delimitadores de tildes `~~~`, Unicode y emojis, bloques múltiples, tablas con pipes escapados `\|`, exportaciones TSV/JSON condicionales y selección de comandos del portapapeles por sistema operativo (Windows, macOS y Linux), además de la codificación y el fallback OSC 52.*
 
 ---
 

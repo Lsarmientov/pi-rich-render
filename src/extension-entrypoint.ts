@@ -133,8 +133,12 @@ export default function (pi: ExtensionAPI) {
                 if (j) text = j;
               }
             }
-            await copyToClipboard(text);
-            ctx.ui.notify(`Copied block #${match[1]} to clipboard!`, "info");
+            try {
+              await copyToClipboard(text);
+              ctx.ui.notify(`Copied block #${match[1]} to clipboard!`, "info");
+            } catch (err: any) {
+              ctx.ui.notify(`Clipboard error: ${err?.message || String(err)}`, "error");
+            }
           } else if (action?.includes("preview")) {
             if (ctx.mode !== "tui") {
               ctx.ui.notify("Interactive preview requires TUI mode.", "warning");
