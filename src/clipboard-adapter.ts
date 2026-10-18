@@ -3,6 +3,7 @@ import { spawn } from "node:child_process";
 export interface ClipboardCommand {
   bin: string;
   args: string[];
+  encode?: "raw" | "base64";
 }
 
 export interface ClipboardDeps {
@@ -21,7 +22,12 @@ export function selectClipboardCommand(
     if (available("powershell")) {
       return {
         bin: "powershell",
-        args: ["-NoProfile", "-Command", "$input | Set-Clipboard"],
+        args: [
+          "-NoProfile",
+          "-Command",
+          "$b=[Console]::In.ReadToEnd();Set-Clipboard -Value ([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b.Trim())))",
+        ],
+        encode: "base64",
       };
     }
     return available("clip") ? { bin: "clip", args: [] } : null;
@@ -33,6 +39,10 @@ export function selectClipboardCommand(
 
   if (available("wl-copy")) return { bin: "wl-copy", args: [] };
   return available("xclip") ? { bin: "xclip", args: ["-selection", "clipboard"] } : null;
+}
+
+export function buildStdinPayload(command: ClipboardCommand, text: string): string {
+  return command.encode === "base64" ? Buffer.from(text, "utf8").toString("base64") : text;
 }
 
 export function encodeOsc52(text: string): string {
@@ -84,7 +94,7 @@ export async function copyToClipboard(text: string, deps: ClipboardDeps = {}): P
   const platform = deps.platform ?? process.platform;
   const env = deps.env ?? process.env;
   const available = deps.available ?? ((bin: string) => probeCommand(platform, bin));
-  const run = deps.run ?? runCommand;
+  const run = deps.run ?? ((command, input) => runCommand(command, buildStdinPayload(command, input)));
   const emit = deps.emit ?? ((sequence: string) => {
     process.stdout.write(sequence);
   });

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 interface ClipboardCommand {
   bin: string;
   args: string[];
+  encode?: "raw" | "base64";
 }
 
 interface ClipboardDeps {
@@ -17,16 +18,39 @@ const clipboard = (await import("../src/clipboard-adapter.js")) as unknown as {
   selectClipboardCommand: (platform: NodeJS.Platform, available: (bin: string) => boolean) => ClipboardCommand | null;
   encodeOsc52: (text: string) => string;
   shouldUseOsc52: (env: NodeJS.ProcessEnv) => boolean;
+  buildStdinPayload: (command: ClipboardCommand, text: string) => string;
   copyToClipboard: (text: string, deps?: ClipboardDeps) => Promise<void>;
 };
 
 describe("clipboard adapter", () => {
+  it("passes raw stdin through byte-for-byte", () => {
+    const text = "í\n雪";
+
+    expect(clipboard.buildStdinPayload({ bin: "clip", args: [] }, text)).toBe(text);
+    expect(Buffer.from(clipboard.buildStdinPayload({ bin: "clip", args: [] }, text), "utf8")).toEqual(
+      Buffer.from(text, "utf8")
+    );
+  });
+
+  it("base64-encodes UTF-8 stdin that round-trips Unicode and newlines", () => {
+    const text = "áéíóú ñ ü\nsegunda línea\n";
+    const encoded = clipboard.buildStdinPayload({ bin: "powershell", args: [], encode: "base64" }, text);
+
+    expect(Buffer.from(encoded, "base64").toString("utf8")).toBe(text);
+    expect(Buffer.from(encoded, "base64")).toEqual(Buffer.from(text, "utf8"));
+  });
+
   it("selects the PowerShell Set-Clipboard command on Windows", () => {
     const has = vi.fn((bin: string) => bin === "powershell");
 
     expect(clipboard.selectClipboardCommand("win32", has)).toEqual({
       bin: "powershell",
-      args: ["-NoProfile", "-Command", "$input | Set-Clipboard"],
+      args: [
+        "-NoProfile",
+        "-Command",
+        "$b=[Console]::In.ReadToEnd();Set-Clipboard -Value ([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b.Trim())))",
+      ],
+      encode: "base64",
     });
     expect(has).toHaveBeenCalledWith("powershell");
   });
