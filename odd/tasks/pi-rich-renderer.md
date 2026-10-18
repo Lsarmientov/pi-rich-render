@@ -94,7 +94,7 @@
    - [x] F0.2 Add a real build: emit `dist/` (tsc or esbuild) and point `package.json` `main` at the emitted file while keeping `index.ts` working for
  jiti/dev loads. Add a `build` script.
    - [x] F0.3 Confirm `.gitignore` covers `node_modules/` and `dist/`.
-   - [ ] F0.4 Verify the extension loads: `pi --extension ./src/extension-entrypoint.ts` (dev flow) and the README symlink install; record exact
+   - [x] F0.4 Verify the extension loads: `pi --extension ./src/extension-entrypoint.ts` (dev flow) and the README symlink install; record exact
  commands and outcomes.
    Acceptance: clean checkout -> `npm ci`, `npm test`, `npx tsc --noEmit` all pass; `main` resolves to an emitted file; `/rich` is available after
  load.
@@ -122,7 +122,7 @@
  SSH / when `PI_CLIPBOARD_OSC52` semantics apply (`docs/environment-variables.md:91`); document which terminals must allow it.
    - [x] F2.3 Unit tests: adapter-selection matrix (mocked runner), OSC 52 encoding vectors, failure paths (no clipboard tool -> clear, actionable
  error).
-   - [ ] F2.4 Manual verification on the primary OS; for remote/SSH verify or explicitly record as unverified.
+   - [x] F2.4 Manual verification on the primary OS; for remote/SSH verify or explicitly record as unverified.
    Acceptance: new tests green (RED first); copy verified on Windows; behavior documented in the README (Spanish).
 
    ### F3 -- Expanded viewer interactions (Size: M)
@@ -180,9 +180,9 @@
    ## Progress
    | Phase | Status | Evidence |
    | --- | --- | --- |
-   | F0 | in progress (F0.4 open) | `npm test` 27/27 (5 files); `npx tsc --noEmit` 0 errors; `npm run build` emits `dist/index.js` (27,811 B) + `dist/src/extension-entrypoint.d.ts` (119 B); `esbuild ^0.28.2` added as a direct devDependency; clean `npm ci` path green (163 packages) |
+   | F0 | done | `npm test` 27/27 (5 files) and `npx tsc --noEmit` 0 errors at closure; `npm run build` reproducible (27,811 B bundle + 119 B d.ts, no `.ts` specifiers); `esbuild ^0.28.2` declared directly; clean `npm ci` path green; `/rich` loaded from the source entrypoint and from the extension directory, with and without `dist`, so the `main` -> `dist/index.js` change does not break directory installs. |
    | F1 | done | `docs/spike-render-hooks.md` — verdict INLINE-OK for text/ANSI block transformation (hook `registerMarkdownTransformer`, typings-only, absent from `docs/*.md`); interactive affordances OVERLAY-ONLY (transformer returns `string`). |
-   | F2 | implementation complete (F2.4 pending user confirmation) | Proven root cause: PowerShell stdin decoding via OEM code page plus `$input` CRLF normalization; base64 UTF-8 stdin fix; self-verifying integration test uses an ASCII base64 read-back bridge. |
+   | F2 | done | Per-OS selection with availability probes (powershell/clip, pbcopy, wl-copy/xclip); OSC 52 fallback (`ESC ]52;c;<base64> BEL`) only when no local tool is found and gated on `PI_CLIPBOARD_OSC52` or SSH, with an explicit false value vetoing auto-detection; 19 deterministic clipboard tests plus an opt-in Windows integration test; `/rich list` copy errors notify instead of rejecting unhandled; Unicode fix: the Windows payload crosses the pipe as ASCII base64 and is decoded as UTF-8 inside PowerShell, because the previous raw UTF-8 pipe was decoded with the console code page and turned `í` into `├¡`; user verified the paste character for character. |
    | F3 | not started | |
    | F4 | not started | |
    | F5 | not started | |
@@ -208,3 +208,4 @@
    - L7: F2.1-F2.3 delivered with RED-first evidence (16 clipboard tests failed before the implementation). A structural read-back then found four defects, fixed in the same unit: an explicit `PI_CLIPBOARD_OSC52` false value now vetoes SSH auto-detection, every clipboard test injects its own env and emit spy, and the README no longer overstates the OSC 52 opt-in or the suite coverage. F2.4 stays open.
    - L8: F2.4 field report — Windows clipboard turned `í` into `├¡`, the signature of UTF-8 bytes decoded through an OEM code page. Root cause: the Windows path piped raw UTF-8 text to PowerShell, whose stdin decode follows the console code page (measured `ibm850` here; `437`/`850` render `C3 AD` as `├¡`), and the old `$input` path additionally normalised line endings to CRLF. Fix: the payload now crosses the pipe as ASCII base64 and is decoded explicitly as UTF-8 inside PowerShell, with the injected-runner seam kept so unit tests still see the raw text. F2.4 stays open until the user confirms the paste.
    - L9: Test-harness lesson — the first integration read-back compared PowerShell stdout decoded as UTF-8 while PowerShell wrote cp850, which fabricated U+FFFD and hid the real result. Clipboard verification must cross the process boundary as ASCII base64 in both directions.
+   - L10 (user confirmation): the pasted copy came back exactly as expected — "N'Símbolos: <>& | $() [] {}' AS PruebaSimbolos;" with the í intact and no ├¡, escaped quotes and angle brackets intact, empty lines and indentation preserved. F2.4 closed. The same report closed F0.4: `/rich` loaded from the source entrypoint and from the extension directory, with `dist` present and with `dist` removed, so `main` -> `dist/index.js` does not break directory installs.
