@@ -19,19 +19,23 @@ export interface ComponentInstance {
 export function createRendererForBlock(
   block: RichBlock,
   theme: Theme,
-  onClose: () => void
+  onClose: () => void,
+  viewport?: number | { viewportHeight?: number; onCopy?: () => Promise<void> }
 ): ComponentInstance {
+  const options = typeof viewport === "number" ? { viewportHeight: viewport } : viewport ?? {};
+  const { viewportHeight, onCopy } = options;
+
   switch (block.kind) {
     case "table":
-      return new TableRendererComponent(block.source, theme, onClose);
+      return new TableRendererComponent(block.source, theme, onClose, viewportHeight, onCopy);
 
     case "diff":
-      return new DiffRendererComponent(block.source, theme, onClose);
+      return new DiffRendererComponent(block.source, theme, onClose, viewportHeight, onCopy);
 
     case "json":
     case "yaml":
     case "xml":
-      return new DataFormatRendererComponent(block.source, block.kind, theme, onClose);
+      return new DataFormatRendererComponent(block.source, block.kind, theme, onClose, viewportHeight, onCopy);
 
     case "mermaid":
     case "math":
@@ -40,7 +44,9 @@ export function createRendererForBlock(
         block.source,
         block.kind === "mermaid" ? "mermaid" : "latex",
         theme,
-        onClose
+        onClose,
+        viewportHeight,
+        onCopy
       );
 
     case "code":
@@ -49,7 +55,9 @@ export function createRendererForBlock(
         block.language ? `${block.kind} (${block.language})` : block.kind,
         block.source,
         theme,
-        onClose
+        onClose,
+        viewportHeight,
+        onCopy
       );
   }
 }

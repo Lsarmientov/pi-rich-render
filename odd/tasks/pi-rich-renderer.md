@@ -130,9 +130,9 @@
    Tasks:
    - [ ] F3.1 Mouse: `MouseRegion`-based click targets inside the overlay component (copy button, close), using `@earendil-works/pi-tui`; active only
  when Pi routes mouse events (fullscreen) and a silent no-op otherwise (`docs/tui.md:58`, `docs/tui.md:62`).
-   - [ ] F3.2 Keyboard parity: every mouse action has a key equivalent (`c` copy, `q`/`Esc` close, `PgUp`/`PgDn`/arrows scroll, `g`/`G` top/bottom),
+   - [x] F3.2 Keyboard parity: every mouse action has a key equivalent (`c` copy, `q`/`Esc` close, `PgUp`/`PgDn`/arrows scroll, `g`/`G` top/bottom),
  following existing `matchesKey` patterns.
-   - [ ] F3.3 Long blocks: windowed scrolling; line numbers for code; keep width-safe rendering (`truncateToWidth`, `visibleWidth`).
+   - [x] F3.3 Long blocks: windowed scrolling; line numbers for code; keep width-safe rendering (`truncateToWidth`, `visibleWidth`).
    - [ ] F3.4 Tests: component `render(width)` snapshots and `handleInput` key cases (mock input); update the README manual checklist.
    Acceptance: tests green; a 100+ line block is navigable; mouse copy works in fullscreen and no-ops otherwise; no regression in `/rich list` /
  `/rich copy`.
@@ -183,7 +183,7 @@
    | F0 | done | `npm test` 27/27 (5 files) and `npx tsc --noEmit` 0 errors at closure; `npm run build` reproducible (27,811 B bundle + 119 B d.ts, no `.ts` specifiers); `esbuild ^0.28.2` declared directly; clean `npm ci` path green; `/rich` loaded from the source entrypoint and from the extension directory, with and without `dist`, so the `main` -> `dist/index.js` change does not break directory installs. |
    | F1 | done | `docs/spike-render-hooks.md` — verdict INLINE-OK for text/ANSI block transformation (hook `registerMarkdownTransformer`, typings-only, absent from `docs/*.md`); interactive affordances OVERLAY-ONLY (transformer returns `string`). |
    | F2 | done | Per-OS selection with availability probes (powershell/clip, pbcopy, wl-copy/xclip); OSC 52 fallback (`ESC ]52;c;<base64> BEL`) only when no local tool is found and gated on `PI_CLIPBOARD_OSC52` or SSH, with an explicit false value vetoing auto-detection; 19 deterministic clipboard tests plus an opt-in Windows integration test; `/rich list` copy errors notify instead of rejecting unhandled; Unicode fix: the Windows payload crosses the pipe as ASCII base64 and is decoded as UTF-8 inside PowerShell, because the previous raw UTF-8 pipe was decoded with the console code page and turned `í` into `├¡`; user verified the paste character for character. |
-   | F3 | not started | |
+   | F3 | in progress (F3.1, F3.4 open) | Shared viewport and keyboard navigation; all five renderers support `c` raw-source copy with hint-line status; focused renderer tests 10/10, `npm test` 62 passed (1 skipped), `npx tsc --noEmit` 0 errors. |
    | F4 | not started | |
    | F5 | not started | |
    | F6 | not started | |
@@ -209,3 +209,5 @@
    - L8: F2.4 field report — Windows clipboard turned `í` into `├¡`, the signature of UTF-8 bytes decoded through an OEM code page. Root cause: the Windows path piped raw UTF-8 text to PowerShell, whose stdin decode follows the console code page (measured `ibm850` here; `437`/`850` render `C3 AD` as `├¡`), and the old `$input` path additionally normalised line endings to CRLF. Fix: the payload now crosses the pipe as ASCII base64 and is decoded explicitly as UTF-8 inside PowerShell, with the injected-runner seam kept so unit tests still see the raw text. F2.4 stays open until the user confirms the paste.
    - L9: Test-harness lesson — the first integration read-back compared PowerShell stdout decoded as UTF-8 while PowerShell wrote cp850, which fabricated U+FFFD and hid the real result. Clipboard verification must cross the process boundary as ASCII base64 in both directions.
    - L10 (user confirmation): the pasted copy came back exactly as expected — "N'Símbolos: <>& | $() [] {}' AS PruebaSimbolos;" with the í intact and no ├¡, escaped quotes and angle brackets intact, empty lines and indentation preserved. F2.4 closed. The same report closed F0.4: `/rich` loaded from the source entrypoint and from the extension directory, with `dist` present and with `dist` removed, so `main` -> `dist/index.js` does not break directory installs.
+   - L11: F3 slice 1 — keyboard parity and windowed scrolling. The viewport height comes from the overlay's TUI object (`tui.terminal.rows`, minus chrome), all five renderers now window their content through the shared `src/renderers/viewport.ts` rules, and the old ±1 clamping without a viewport is gone. Mouse (F3.1) is deliberately deferred: overlay mouse dispatch was proven reachable in fullscreen only, so it belongs to its own slice.
+   - L12: F3 slice 1b — the `c` copy key is wired inside the overlay for all five renderers. It copies the block's raw source through the existing clipboard adapter and reports the result on the hint line (`Copied to clipboard`, or `Copy failed: <message>`), so no feedback depends on notify behaviour inside an overlay. F3.2 is now genuinely complete; mouse (F3.1) and the manual checklist plus README update (F3.4) remain.

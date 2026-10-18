@@ -145,7 +145,14 @@ export default function (pi: ExtensionAPI) {
               return;
             }
             await ctx.ui.custom<void>(
-              (_tui, theme, _kb, done) => createRendererForBlock(chosen, theme, () => done()),
+              (tui, theme, _kb, done) => {
+                const rows = tui?.terminal?.rows ?? 24;
+                const viewportHeight = Math.max(5, rows - 4);
+                return createRendererForBlock(chosen, theme, () => done(), {
+                  viewportHeight,
+                  onCopy: () => copyToClipboard(chosen.source),
+                });
+              },
               { overlay: true }
             );
           }
@@ -168,7 +175,14 @@ export default function (pi: ExtensionAPI) {
           }
 
           await ctx.ui.custom<void>(
-            (_tui, theme, _kb, done) => createRendererForBlock(target, theme, () => done()),
+            (tui, theme, _kb, done) => {
+              const rows = tui?.terminal?.rows ?? 24;
+              const viewportHeight = Math.max(5, rows - 4);
+              return createRendererForBlock(target, theme, () => done(), {
+                viewportHeight,
+                onCopy: () => copyToClipboard(target.source),
+              });
+            },
             { overlay: true }
           );
           break;

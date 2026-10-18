@@ -1,5 +1,6 @@
 import type { Theme } from "@earendil-works/pi-coding-agent";
 import { matchesKey, truncateToWidth } from "@earendil-works/pi-tui";
+import { clampOffset, formatRange, normalizedHeight, scrollForKey } from "./viewport.js";
 
 export class DataFormatRendererComponent {
   private rawSource: string;
@@ -9,12 +10,24 @@ export class DataFormatRendererComponent {
   private theme: Theme;
   private onClose: () => void;
   private scrollY = 0;
+  private viewportHeight: number;
+  private onCopy?: () => Promise<void>;
+  private status = "";
 
-  constructor(source: string, kind: "json" | "yaml" | "xml", theme: Theme, onClose: () => void) {
+  constructor(
+    source: string,
+    kind: "json" | "yaml" | "xml",
+    theme: Theme,
+    onClose: () => void,
+    viewportHeight = 20,
+    onCopy?: () => Promise<void>
+  ) {
     this.rawSource = source;
     this.kind = kind;
     this.theme = theme;
     this.onClose = onClose;
+    this.viewportHeight = normalizedHeight(viewportHeight);
+    this.onCopy = onCopy;
 
     this.formattedSource = this.tryFormat(source, kind);
   }
@@ -33,20 +46,28 @@ export class DataFormatRendererComponent {
   }
 
   handleInput(data: string): void {
+    this.status = "";
+    if (data === "c" && this.onCopy) {
+      void this.copy();
+      return;
+    }
     if (matchesKey(data, "escape") || matchesKey(data, "ctrl+c") || data.toLowerCase() === "q") {
       this.onClose();
       return;
     }
     if (data.toLowerCase() === "f") {
       this.showFormatted = !this.showFormatted;
+      const lines = (this.showFormatted ? this.formattedSource : this.rawSource).split(/\r?\n/);
+      this.scrollY = clampOffset(this.scrollY, lines.length, this.viewportHeight);
       return;
     }
     const currentLines = (this.showFormatted ? this.formattedSource : this.rawSource).split(/\r?\n/);
-    if (matchesKey(data, "up") || data === "k") {
-      this.scrollY = Math.max(0, this.scrollY - 1);
-    } else if (matchesKey(data, "down") || data === "j") {
-      this.scrollY = Math.min(Math.max(0, currentLines.length - 1), this.scrollY + 1);
-    }
+    const offset = scrollForKey(data, {
+      offset: this.scrollY,
+      total: currentLines.length,
+      height: this.viewportHeight,
+    });
+    if (offset !== null) this.scrollY = offset;
   }
 
   render(width: number): string[] {
@@ -54,22 +75,35 @@ export class DataFormatRendererComponent {
     const output: string[] = [];
     const modeLabel = this.showFormatted ? "[Formatted]" : "[Original]";
 
+    const activeLines = (this.showFormatted ? this.formattedSource : this.rawSource).split(/\r?\n/);
+    const range = formatRange({ offset: this.scrollY, total: activeLines.length, height: this.viewportHeight });
     output.push(
-      th.fg(
-        "accent",
-        ` 📦 ${this.kind.toUpperCase()} Preview ${modeLabel} ('f' toggle format, ↑/↓ scroll, Esc/q close)`
+      truncateToWidth(
+        th.fg(
+          "accent",
+          ` 📦 ${this.kind.toUpperCase()} ${modeLabel} ${this.status ? `${this.status} ` : ""}${range} (${this.onCopy ? "c copy, " : ""}'f' toggle format, ↑/↓ scroll, PgUp/PgDn, g/G, Esc/q close)`
+        ),
+        width
       )
     );
     output.push("");
 
-    const activeText = this.showFormatted ? this.formattedSource : this.rawSource;
-    const lines = activeText.split(/\r?\n/).slice(this.scrollY);
+    const lines = activeLines.slice(this.scrollY, this.scrollY + this.viewportHeight);
 
     for (const line of lines) {
       output.push(truncateToWidth(th.fg("text", line), width));
     }
 
     return output;
+  }
+
+  private async copy(): Promise<void> {
+    try {
+      await this.onCopy?.();
+      this.status = "Copied to clipboard";
+    } catch (error) {
+      this.status = `Copy failed: ${error instanceof Error ? error.message : String(error)}`;
+    }
   }
 
   invalidate(): void {}

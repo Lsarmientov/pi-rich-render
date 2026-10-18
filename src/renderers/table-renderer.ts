@@ -1,6 +1,7 @@
 import type { Theme } from "@earendil-works/pi-coding-agent";
 import { matchesKey, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { parseTableData, type TableData } from "../exporters/table-exporter.js";
+import { formatRange, normalizedHeight, scrollForKey } from "./viewport.js";
 
 /**
  * Interactive TUI component for rendering structured tables with column alignment,
@@ -12,10 +13,21 @@ export class TableRendererComponent {
   private onClose: () => void;
   private scrollX = 0;
   private scrollY = 0;
+  private viewportHeight: number;
+  private onCopy?: () => Promise<void>;
+  private status = "";
 
-  constructor(tableMarkdown: string, theme: Theme, onClose: () => void) {
+  constructor(
+    tableMarkdown: string,
+    theme: Theme,
+    onClose: () => void,
+    viewportHeight = 20,
+    onCopy?: () => Promise<void>
+  ) {
     this.theme = theme;
     this.onClose = onClose;
+    this.viewportHeight = normalizedHeight(viewportHeight);
+    this.onCopy = onCopy;
     const parsed = parseTableData(tableMarkdown);
     this.data = parsed ?? {
       headers: ["Raw Content"],
@@ -25,6 +37,11 @@ export class TableRendererComponent {
   }
 
   handleInput(data: string): void {
+    this.status = "";
+    if (data === "c" && this.onCopy) {
+      void this.copy();
+      return;
+    }
     if (matchesKey(data, "escape") || matchesKey(data, "ctrl+c") || data.toLowerCase() === "q") {
       this.onClose();
       return;
@@ -34,16 +51,20 @@ export class TableRendererComponent {
       this.scrollX = Math.max(0, this.scrollX - 4);
     } else if (matchesKey(data, "right") || data === "l") {
       this.scrollX += 4;
-    } else if (matchesKey(data, "up") || data === "k") {
-      this.scrollY = Math.max(0, this.scrollY - 1);
-    } else if (matchesKey(data, "down") || data === "j") {
-      this.scrollY += 1;
+    } else {
+      const offset = scrollForKey(data, {
+        offset: this.scrollY,
+        total: this.data.rows.length + 4,
+        height: this.viewportHeight,
+      });
+      if (offset !== null) this.scrollY = offset;
     }
   }
 
   render(width: number): string[] {
     const th = this.theme;
-    const lines: string[] = [];
+    const output: string[] = [];
+    const tableLines: string[] = [];
     const { headers, alignments, rows } = this.data;
 
     // 1. Calculate column widths based on content
@@ -76,15 +97,23 @@ export class TableRendererComponent {
     };
 
     // Header title
-    lines.push(th.fg("accent", " 📊 Table Preview (←/→/↑/↓ or h/j/k/l to scroll, Esc/q to close)"));
-    lines.push("");
+    const range = formatRange({ offset: this.scrollY, total: rows.length + 4, height: this.viewportHeight });
+    const status = this.status ? `${this.status} ` : "";
+    const copyHint = this.onCopy ? "c copy, " : "";
+    output.push(
+      truncateToWidth(
+        th.fg("accent", ` 📊 ${status}${range} (${copyHint}←/→/↑/↓ or h/j/k/l to scroll, PgUp/PgDn, g/G, Esc/q to close)`),
+        width
+      )
+    );
+    output.push("");
 
     // Top border: ┌───┬───┐
     const topBorder =
       th.fg("border", "┌") +
       paddedWidths.map((w) => th.fg("border", "─".repeat(w))).join(th.fg("border", "┬")) +
       th.fg("border", "┐");
-    lines.push(this.applyHorizontalScroll(topBorder, width));
+    tableLines.push(topBorder);
 
     // Header cells: │ col 1 │ col 2 │
     const headerRow =
@@ -93,25 +122,24 @@ export class TableRendererComponent {
         .map((h, i) => th.bold(th.fg("accent", padCell(h, i))))
         .join(th.fg("border", "│")) +
       th.fg("border", "│");
-    lines.push(this.applyHorizontalScroll(headerRow, width));
+    tableLines.push(headerRow);
 
     // Delimiter border: ├───┼───┤
     const midBorder =
       th.fg("border", "├") +
       paddedWidths.map((w) => th.fg("border", "─".repeat(w))).join(th.fg("border", "┼")) +
       th.fg("border", "┤");
-    lines.push(this.applyHorizontalScroll(midBorder, width));
+    tableLines.push(midBorder);
 
     // Data rows with vertical scroll
-    const visibleRows = rows.slice(this.scrollY);
-    for (const row of visibleRows) {
+    for (const row of rows) {
       const rowLine =
         th.fg("border", "│") +
         headers
           .map((_, i) => th.fg("text", padCell(row[i] ?? "", i)))
           .join(th.fg("border", "│")) +
         th.fg("border", "│");
-      lines.push(this.applyHorizontalScroll(rowLine, width));
+      tableLines.push(rowLine);
     }
 
     // Bottom border: └───┴───┘
@@ -119,9 +147,12 @@ export class TableRendererComponent {
       th.fg("border", "└") +
       paddedWidths.map((w) => th.fg("border", "─".repeat(w))).join(th.fg("border", "┴")) +
       th.fg("border", "┘");
-    lines.push(this.applyHorizontalScroll(bottomBorder, width));
+    tableLines.push(bottomBorder);
 
-    return lines;
+    for (const line of tableLines.slice(this.scrollY, this.scrollY + this.viewportHeight)) {
+      output.push(this.applyHorizontalScroll(line, width));
+    }
+    return output;
   }
 
   private applyHorizontalScroll(line: string, width: number): string {
@@ -131,6 +162,15 @@ export class TableRendererComponent {
       return truncateToWidth(line.slice(Math.min(this.scrollX, line.length)), width);
     }
     return truncateToWidth(line, width);
+  }
+
+  private async copy(): Promise<void> {
+    try {
+      await this.onCopy?.();
+      this.status = "Copied to clipboard";
+    } catch (error) {
+      this.status = `Copy failed: ${error instanceof Error ? error.message : String(error)}`;
+    }
   }
 
   invalidate(): void {}
