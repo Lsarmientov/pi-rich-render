@@ -4,6 +4,7 @@ import { selectBlock, formatBlockOption } from "./block-selector.js";
 import { copyToClipboard } from "./clipboard-adapter.js";
 import { tableToTSV, tableToJSON } from "./exporters/table-exporter.js";
 import { createRendererForBlock } from "./renderer-registry.js";
+import { overlayLayout } from "./overlay-layout.js";
 
 export default function (pi: ExtensionAPI) {
   pi.on("session_start", (_event, ctx) => {
@@ -144,16 +145,17 @@ export default function (pi: ExtensionAPI) {
               ctx.ui.notify("Interactive preview requires TUI mode.", "warning");
               return;
             }
+            const layoutState: { current?: ReturnType<typeof overlayLayout> } = {};
             await ctx.ui.custom<void>(
               (tui, theme, _kb, done) => {
-                const rows = tui?.terminal?.rows ?? 24;
-                const viewportHeight = Math.max(5, rows - 4);
+                const layout = overlayLayout(tui?.terminal?.rows ?? 24);
+                layoutState.current = layout;
                 return createRendererForBlock(chosen, theme, () => done(), {
-                  viewportHeight,
+                  viewportHeight: layout.viewportHeight,
                   onCopy: () => copyToClipboard(chosen.source),
                 });
               },
-              { overlay: true }
+              { overlay: true, overlayOptions: () => layoutState.current!.overlayOptions as { maxHeight: number } }
             );
           }
           break;
@@ -174,16 +176,17 @@ export default function (pi: ExtensionAPI) {
             return;
           }
 
+          const layoutState: { current?: ReturnType<typeof overlayLayout> } = {};
           await ctx.ui.custom<void>(
             (tui, theme, _kb, done) => {
-              const rows = tui?.terminal?.rows ?? 24;
-              const viewportHeight = Math.max(5, rows - 4);
+              const layout = overlayLayout(tui?.terminal?.rows ?? 24);
+              layoutState.current = layout;
               return createRendererForBlock(target, theme, () => done(), {
-                viewportHeight,
+                viewportHeight: layout.viewportHeight,
                 onCopy: () => copyToClipboard(target.source),
               });
             },
-            { overlay: true }
+            { overlay: true, overlayOptions: () => layoutState.current!.overlayOptions as { maxHeight: number } }
           );
           break;
         }
