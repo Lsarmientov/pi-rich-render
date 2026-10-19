@@ -1,7 +1,9 @@
 import type { Theme } from "@earendil-works/pi-coding-agent";
 import { matchesKey, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import type { TuiMouseEvent, TuiMouseEventResult } from "@earendil-works/pi-tui";
 import { clampHorizontalOffset, hscrollForKey, sliceColumns } from "./hscroll.js";
-import { formatRange, normalizedHeight, scrollForKey } from "./viewport.js";
+import { isCopyTargetHit, wheelLines } from "./mouse.js";
+import { clampOffset, formatRange, normalizedHeight, scrollForKey } from "./viewport.js";
 
 export class GenericCodeRendererComponent {
   private title: string;
@@ -11,6 +13,7 @@ export class GenericCodeRendererComponent {
   private scrollY = 0;
   private scrollX = 0;
   private horizontalWidth = 1;
+  private lastRenderedWidth = 0;
   private viewportHeight: number;
   private onCopy?: () => Promise<void>;
   private status = "";
@@ -58,7 +61,23 @@ export class GenericCodeRendererComponent {
     if (offset !== null) this.scrollY = offset;
   }
 
+  handleMouse(event: TuiMouseEvent): TuiMouseEventResult | undefined {
+    if (event.type === "wheel") {
+      this.scrollY = clampOffset(this.scrollY + wheelLines(event.wheelDelta), this.lines.length, this.viewportHeight);
+      return { handled: true };
+    }
+    if (event.type === "click" && this.onCopy && isCopyTargetHit(event.x, event.y, {
+      width: this.lastRenderedWidth,
+      labelWidth: "[ copy ]".length,
+    })) {
+      void this.copy();
+      return { handled: true, render: true };
+    }
+    return undefined;
+  }
+
   render(width: number): string[] {
+    this.lastRenderedWidth = width;
     const th = this.theme;
     const output: string[] = [];
 
@@ -67,7 +86,15 @@ export class GenericCodeRendererComponent {
     const status = this.status ? `${this.status} ` : "";
     const fixedText = ` 📄  ${range} ${status}${hint}`;
     const title = truncateToWidth(this.title, Math.max(0, width - visibleWidth(fixedText)));
-    output.push(truncateToWidth(th.fg("accent", ` 📄 ${title} ${range} ${status}${hint}`), width));
+    const header = th.fg("accent", ` 📄 ${title} ${range} ${status}${hint}`);
+    if (this.onCopy) {
+      const label = "[ copy ]";
+      const headerWidth = Math.max(0, width - visibleWidth(label));
+      const visibleHeader = truncateToWidth(header, headerWidth);
+      output.push(`${visibleHeader}${" ".repeat(Math.max(0, headerWidth - visibleWidth(visibleHeader)))}${truncateToWidth(label, width)}`);
+    } else {
+      output.push(truncateToWidth(header, width));
+    }
     output.push("");
 
     const visibleLines = this.lines.slice(this.scrollY, this.scrollY + this.viewportHeight);

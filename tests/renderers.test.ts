@@ -67,6 +67,41 @@ describe("windowed renderers", () => {
     expect(renderer.render(40)[2]).toBe(initial[2]);
   });
 
+  it("supports right-aligned copy clicks and vertical wheel scrolling in code", async () => {
+    const source = Array.from({ length: 20 }, (_, i) => `code-line-${i + 1}`).join("\n");
+    const onCopy = vi.fn().mockResolvedValue(undefined);
+    const renderer = new GenericCodeRendererComponent("code", source, mockTheme, onClose, 4, onCopy);
+    const event = (type: "click" | "wheel", x: number, y: number, wheelDelta?: number) => ({
+      type,
+      button: type === "click" ? "left" as const : "none" as const,
+      x,
+      y,
+      screenX: x,
+      screenY: y,
+      width: 40,
+      height: 6,
+      shift: false,
+      alt: false,
+      ctrl: false,
+      wheelDelta,
+    });
+
+    expect(renderer.render(40)[0].endsWith("[ copy ]")).toBe(true);
+    expect(renderer.handleMouse(event("click", 38, 0))).toEqual({ handled: true, render: true });
+    expect(onCopy).toHaveBeenCalledTimes(1);
+    await Promise.resolve();
+
+    expect(renderer.handleMouse(event("click", 2, 0))).toBeUndefined();
+    expect(renderer.handleMouse(event("click", 38, 5))).toBeUndefined();
+    expect(onCopy).toHaveBeenCalledTimes(1);
+
+    expect(renderer.render(40)[2]).toMatch(/^\s*1 │ code-line-1/);
+    expect(renderer.handleMouse(event("wheel", 2, 2, 3))).toEqual({ handled: true });
+    expect(renderer.render(40)[2]).toMatch(/^\s*4 │ code-line-4/);
+    expect(renderer.handleMouse(event("wheel", 2, 2, -3))).toEqual({ handled: true });
+    expect(renderer.render(40)[2]).toMatch(/^\s*1 │ code-line-1/);
+  });
+
   it("keeps the diff marker visible while scrolling long changed lines", () => {
     const renderer = new DiffRendererComponent("+" + "0123456789".repeat(20), mockTheme, onClose, viewportHeight);
     const initial = renderer.render(40);
@@ -221,7 +256,21 @@ describe("windowed renderers", () => {
   it("does not advertise or invoke copying when onCopy is absent", () => {
     const renderer = new GenericCodeRendererComponent("code", "line", mockTheme, onClose, viewportHeight);
     expect(renderer.render(width).join("\\n")).not.toContain("c copy");
+    expect(renderer.render(width)[0]).not.toContain("[ copy ]");
     expect(() => renderer.handleInput("c")).not.toThrow();
+    expect(() => renderer.handleMouse({
+      type: "click",
+      button: "left",
+      x: 2,
+      y: 0,
+      screenX: 2,
+      screenY: 0,
+      width,
+      height: viewportHeight + 2,
+      shift: false,
+      alt: false,
+      ctrl: false,
+    })).not.toThrow();
   });
 
   it("preserves close keys and the formatted-data toggle", () => {

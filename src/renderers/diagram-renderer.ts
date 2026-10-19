@@ -1,7 +1,9 @@
 import type { Theme } from "@earendil-works/pi-coding-agent";
 import { matchesKey, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import type { TuiMouseEvent, TuiMouseEventResult } from "@earendil-works/pi-tui";
 import { clampHorizontalOffset, hscrollForKey, sliceColumns } from "./hscroll.js";
-import { formatRange, normalizedHeight, scrollForKey } from "./viewport.js";
+import { isCopyTargetHit, wheelLines } from "./mouse.js";
+import { clampOffset, formatRange, normalizedHeight, scrollForKey } from "./viewport.js";
 
 export class DiagramRendererComponent {
   private title: string;
@@ -12,6 +14,7 @@ export class DiagramRendererComponent {
   private scrollY = 0;
   private scrollX = 0;
   private horizontalWidth = 1;
+  private lastRenderedWidth = 0;
   private viewportHeight: number;
   private onCopy?: () => Promise<void>;
   private status = "";
@@ -62,22 +65,42 @@ export class DiagramRendererComponent {
     if (offset !== null) this.scrollY = offset;
   }
 
+  handleMouse(event: TuiMouseEvent): TuiMouseEventResult | undefined {
+    if (event.type === "wheel") {
+      const lines = this.source.split(/\r?\n/);
+      this.scrollY = clampOffset(this.scrollY + wheelLines(event.wheelDelta), lines.length, this.viewportHeight);
+      return { handled: true };
+    }
+    if (event.type === "click" && this.onCopy && isCopyTargetHit(event.x, event.y, {
+      width: this.lastRenderedWidth,
+      labelWidth: "[ copy ]".length,
+    })) {
+      void this.copy();
+      return { handled: true, render: true };
+    }
+    return undefined;
+  }
+
   render(width: number): string[] {
+    this.lastRenderedWidth = width;
     const th = this.theme;
     const output: string[] = [];
 
     const icon = this.kind === "mermaid" ? "📐 Mermaid Diagram" : "∑ LaTeX Formula";
     const lines = this.source.split(/\r?\n/);
     const range = formatRange({ offset: this.scrollY, total: lines.length, height: this.viewportHeight });
-    output.push(
-      truncateToWidth(
-        th.fg(
-          "accent",
-          ` ${icon}: ${this.title} ${this.status ? `${this.status} ` : ""}${range} (${this.onCopy ? "c copy, " : ""}←/→ or h/l, ↑/↓ to scroll, PgUp/PgDn, g/G, Esc/q to close) [Note: Terminal shows raw syntax faithfully; graphical preview requires browser sidecar]`
-        ),
-        width
-      )
+    const header = th.fg(
+      "accent",
+      ` ${icon}: ${this.title} ${this.status ? `${this.status} ` : ""}${range} (${this.onCopy ? "c copy, " : ""}←/→ or h/l, ↑/↓ to scroll, PgUp/PgDn, g/G, Esc/q to close) [Note: Terminal shows raw syntax faithfully; graphical preview requires browser sidecar]`
     );
+    if (this.onCopy) {
+      const label = "[ copy ]";
+      const headerWidth = Math.max(0, width - visibleWidth(label));
+      const visibleHeader = truncateToWidth(header, headerWidth);
+      output.push(`${visibleHeader}${" ".repeat(Math.max(0, headerWidth - visibleWidth(visibleHeader)))}${truncateToWidth(label, width)}`);
+    } else {
+      output.push(truncateToWidth(header, width));
+    }
     output.push("");
 
     const visibleLines = lines.slice(this.scrollY, this.scrollY + this.viewportHeight);

@@ -1,8 +1,10 @@
 import type { Theme } from "@earendil-works/pi-coding-agent";
 import { matchesKey, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import type { TuiMouseEvent, TuiMouseEventResult } from "@earendil-works/pi-tui";
 import { parseTableData, type TableData } from "../exporters/table-exporter.js";
 import { clampHorizontalOffset, hscrollForKey, sliceColumns } from "./hscroll.js";
-import { formatRange, normalizedHeight, scrollForKey } from "./viewport.js";
+import { isCopyTargetHit, wheelLines } from "./mouse.js";
+import { clampOffset, formatRange, normalizedHeight, scrollForKey } from "./viewport.js";
 
 /**
  * Interactive TUI component for rendering structured tables with column alignment,
@@ -15,6 +17,7 @@ export class TableRendererComponent {
   private scrollX = 0;
   private scrollY = 0;
   private horizontalWidth = 1;
+  private lastRenderedWidth = 0;
   private maxLineWidth = 0;
   private viewportHeight: number;
   private onCopy?: () => Promise<void>;
@@ -67,7 +70,23 @@ export class TableRendererComponent {
     if (offset !== null) this.scrollY = offset;
   }
 
+  handleMouse(event: TuiMouseEvent): TuiMouseEventResult | undefined {
+    if (event.type === "wheel") {
+      this.scrollY = clampOffset(this.scrollY + wheelLines(event.wheelDelta), this.data.rows.length + 4, this.viewportHeight);
+      return { handled: true };
+    }
+    if (event.type === "click" && this.onCopy && isCopyTargetHit(event.x, event.y, {
+      width: this.lastRenderedWidth,
+      labelWidth: "[ copy ]".length,
+    })) {
+      void this.copy();
+      return { handled: true, render: true };
+    }
+    return undefined;
+  }
+
   render(width: number): string[] {
+    this.lastRenderedWidth = width;
     const th = this.theme;
     const output: string[] = [];
     const tableLines: string[] = [];
@@ -106,12 +125,15 @@ export class TableRendererComponent {
     const range = formatRange({ offset: this.scrollY, total: rows.length + 4, height: this.viewportHeight });
     const status = this.status ? `${this.status} ` : "";
     const copyHint = this.onCopy ? "c copy, " : "";
-    output.push(
-      truncateToWidth(
-        th.fg("accent", ` 📊 ${status}${range} (${copyHint}←/→/↑/↓ or h/j/k/l to scroll, PgUp/PgDn, g/G, Esc/q to close)`),
-        width
-      )
-    );
+    const header = th.fg("accent", ` 📊 ${status}${range} (${copyHint}←/→/↑/↓ or h/j/k/l to scroll, PgUp/PgDn, g/G, Esc/q to close)`);
+    if (this.onCopy) {
+      const label = "[ copy ]";
+      const headerWidth = Math.max(0, width - visibleWidth(label));
+      const visibleHeader = truncateToWidth(header, headerWidth);
+      output.push(`${visibleHeader}${" ".repeat(Math.max(0, headerWidth - visibleWidth(visibleHeader)))}${truncateToWidth(label, width)}`);
+    } else {
+      output.push(truncateToWidth(header, width));
+    }
     output.push("");
 
     // Top border: ┌───┬───┐
