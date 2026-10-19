@@ -148,14 +148,14 @@ export default function (pi: ExtensionAPI) {
             const layoutState: { current?: ReturnType<typeof overlayLayout> } = {};
             await ctx.ui.custom<void>(
               (tui, theme, _kb, done) => {
-                const layout = overlayLayout(tui?.terminal?.rows ?? 24);
+                const layout = overlayLayout(tui?.terminal?.rows ?? 24, tui?.terminal?.columns ?? 80);
                 layoutState.current = layout;
                 return createRendererForBlock(chosen, theme, () => done(), {
                   viewportHeight: layout.viewportHeight,
                   onCopy: () => copyToClipboard(chosen.source),
                 });
               },
-              { overlay: true, overlayOptions: () => layoutState.current!.overlayOptions as { maxHeight: number } }
+              { overlay: true, overlayOptions: () => layoutState.current!.overlayOptions as { maxHeight: number; width: number } }
             );
           }
           break;
@@ -179,14 +179,14 @@ export default function (pi: ExtensionAPI) {
           const layoutState: { current?: ReturnType<typeof overlayLayout> } = {};
           await ctx.ui.custom<void>(
             (tui, theme, _kb, done) => {
-              const layout = overlayLayout(tui?.terminal?.rows ?? 24);
+              const layout = overlayLayout(tui?.terminal?.rows ?? 24, tui?.terminal?.columns ?? 80);
               layoutState.current = layout;
               return createRendererForBlock(target, theme, () => done(), {
                 viewportHeight: layout.viewportHeight,
                 onCopy: () => copyToClipboard(target.source),
               });
             },
-            { overlay: true, overlayOptions: () => layoutState.current!.overlayOptions as { maxHeight: number } }
+            { overlay: true, overlayOptions: () => layoutState.current!.overlayOptions as { maxHeight: number; width: number } }
           );
           break;
         }

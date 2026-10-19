@@ -17,24 +17,46 @@ describe("overlayLayout", () => {
     [10, 4, 2],
     [3, 4, 2],
   ])("sizes a %i-row terminal with maxHeight %i and viewportHeight %i", (rows, maxHeight, viewportHeight) => {
-    const layout = overlayLayout(rows);
+    const layout = overlayLayout(rows, 80);
 
-    expect(layout.overlayOptions).toEqual({ maxHeight });
+    expect(layout.overlayOptions.maxHeight).toBe(maxHeight);
     expect(layout.viewportHeight).toBe(viewportHeight);
+  });
+
+  it.each([
+    [120, 114],
+    [80, 74],
+    [40, 34],
+    [26, 20],
+    [12, 12],
+  ])("sizes a %i-column terminal with width %i", (columns, width) => {
+    const layout = overlayLayout(24, columns);
+
+    expect(layout.overlayOptions.width).toBe(width);
   });
 
   it("keeps the overlay within terminal height from 7 through 200 rows", () => {
     for (let rows = 7; rows <= 200; rows++) {
-      const { overlayOptions, viewportHeight } = overlayLayout(rows);
+      const { overlayOptions, viewportHeight } = overlayLayout(rows, 80);
       const maxHeight = overlayOptions.maxHeight as number;
 
-      expect(viewportHeight + 2).toBeLessThanOrEqual(maxHeight);
+      expect(viewportHeight + 2).toBe(maxHeight);
       expect(maxHeight).toBeLessThanOrEqual(rows);
     }
   });
 
+  it("keeps overlay width within terminal columns from 20 through 200", () => {
+    for (let columns = 20; columns <= 200; columns++) {
+      const { overlayOptions } = overlayLayout(24, columns);
+      const width = overlayOptions.width as number;
+
+      expect(width).toBeLessThanOrEqual(columns);
+      expect(width).toBeGreaterThanOrEqual(1);
+    }
+  });
+
   it("renders a 100-line code block exactly to the 30-row overlay cap", () => {
-    const { overlayOptions, viewportHeight } = overlayLayout(30);
+    const { overlayOptions, viewportHeight } = overlayLayout(30, 80);
     const renderer = new GenericCodeRendererComponent(
       "code",
       Array.from({ length: 100 }, (_, index) => `line-${index + 1}`).join("\n"),
