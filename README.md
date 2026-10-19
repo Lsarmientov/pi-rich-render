@@ -94,8 +94,11 @@ npm test
    - Ejecuta `/rich copy`. Selecciona la opción `2. TSV (Spreadsheets / Excel)`.
    - Pega en Excel y verifica que cada dato quede en su celda correspondiente.
 4. **Vista interactiva en overlay**:
-   - Ejecuta `/rich view` y selecciona la tabla o un bloque de código largo.
-   - Navega con las flechas del teclado o `j/k`. Presiona `Esc` o `q` para cerrar el overlay.
+   - Abre con `/rich view` un bloque de código de 100 o más líneas (también puedes abrir el preview desde `/rich list`). Confirma que el overlay no exceda la terminal, que `PgDn` llegue al final, `g` al inicio y `G` al final, y que la última línea sea alcanzable y se vea completa, sin perder contenido.
+   - Prueba el scroll vertical con `↑`/`↓` y `j`/`k`, y por página con `PgUp`/`PgDn`; `Home`/`g` deben ir al inicio y `End`/`G` al final. Presiona `Esc` o `q` para cerrar.
+   - En un bloque con una línea más ancha que la terminal, usa `→` o `l` hasta leerla completa; confirma que los números de línea permanezcan fijos mientras el texto se desplaza horizontalmente.
+   - Dentro del overlay, presiona `c`: confirma que la línea de ayuda indique `Copied to clipboard` o `Copy failed: <message>` y pega en un editor externo. El texto pegado debe ser la fuente cruda, sin fences ni números de línea.
+   - En modo fullscreen, comprueba que la rueda desplace la vista y que el clic en la etiqueta `[ copy ]` copie el bloque. En modo regular, comprueba que la rueda no desplace el overlay; allí se navega con el teclado.
 5. **Listado de contexto**:
    - Ejecuta `/rich list`.
    - Confirma que liste los bloques encontrados con sus metadatos y permita copiarlos o abrirlos.
