@@ -1,6 +1,7 @@
 import type { Theme } from "@earendil-works/pi-coding-agent";
 import { matchesKey, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { parseTableData, type TableData } from "../exporters/table-exporter.js";
+import { clampHorizontalOffset, hscrollForKey, sliceColumns } from "./hscroll.js";
 import { formatRange, normalizedHeight, scrollForKey } from "./viewport.js";
 
 /**
@@ -13,6 +14,8 @@ export class TableRendererComponent {
   private onClose: () => void;
   private scrollX = 0;
   private scrollY = 0;
+  private horizontalWidth = 1;
+  private maxLineWidth = 0;
   private viewportHeight: number;
   private onCopy?: () => Promise<void>;
   private status = "";
@@ -47,18 +50,21 @@ export class TableRendererComponent {
       return;
     }
 
-    if (matchesKey(data, "left") || data === "h") {
-      this.scrollX = Math.max(0, this.scrollX - 4);
-    } else if (matchesKey(data, "right") || data === "l") {
-      this.scrollX += 4;
-    } else {
-      const offset = scrollForKey(data, {
-        offset: this.scrollY,
-        total: this.data.rows.length + 4,
-        height: this.viewportHeight,
-      });
-      if (offset !== null) this.scrollY = offset;
+    const horizontalOffset = hscrollForKey(data, {
+      offset: this.scrollX,
+      maxLineWidth: this.maxLineWidth,
+      width: this.horizontalWidth,
+    });
+    if (horizontalOffset !== null) {
+      this.scrollX = horizontalOffset;
+      return;
     }
+    const offset = scrollForKey(data, {
+      offset: this.scrollY,
+      total: this.data.rows.length + 4,
+      height: this.viewportHeight,
+    });
+    if (offset !== null) this.scrollY = offset;
   }
 
   render(width: number): string[] {
@@ -149,6 +155,9 @@ export class TableRendererComponent {
       th.fg("border", "┘");
     tableLines.push(bottomBorder);
 
+    this.horizontalWidth = width;
+    this.maxLineWidth = Math.max(0, ...tableLines.map((line) => visibleWidth(line)));
+    this.scrollX = clampHorizontalOffset(this.scrollX, this.maxLineWidth, width);
     for (const line of tableLines.slice(this.scrollY, this.scrollY + this.viewportHeight)) {
       output.push(this.applyHorizontalScroll(line, width));
     }
@@ -156,12 +165,38 @@ export class TableRendererComponent {
   }
 
   private applyHorizontalScroll(line: string, width: number): string {
-    // In TUI rendering, truncate to terminal width with optional scroll offset
-    if (this.scrollX > 0) {
-      // slice visual columns when scrolled
-      return truncateToWidth(line.slice(Math.min(this.scrollX, line.length)), width);
+    const offset = clampHorizontalOffset(this.scrollX, visibleWidth(line), width);
+    return truncateToWidth(this.sliceStyledColumns(line, offset, width), width);
+  }
+
+  private sliceStyledColumns(line: string, offset: number, width: number): string {
+    if (offset === 0 && visibleWidth(line) <= width) return line;
+
+    const tokens = line.match(/\u001b\[[0-?]*[ -/]*[@-~]|[^\u001b]+|\u001b/g) ?? [];
+    let column = 0;
+    let pendingAnsi = "";
+    let output = "";
+    for (const token of tokens) {
+      if (token.startsWith("\u001b")) {
+        pendingAnsi += token;
+        continue;
+      }
+
+      const textWidth = visibleWidth(token);
+      const start = Math.max(offset, column);
+      const end = Math.min(offset + width, column + textWidth);
+      if (end > start) {
+        const visibleText = sliceColumns(token, start - column, end - start);
+        if (visibleText) {
+          output += pendingAnsi + visibleText;
+          pendingAnsi = "";
+        }
+      }
+      column += textWidth;
+      if (column >= offset + width) break;
     }
-    return truncateToWidth(line, width);
+    if (output && line.includes("\u001b[")) output += "\u001b[0m";
+    return output;
   }
 
   private async copy(): Promise<void> {

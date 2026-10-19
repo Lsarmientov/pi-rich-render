@@ -22,7 +22,7 @@ const assertWidthSafe = (lines: string[]) => {
   for (const line of lines) expect(visibleWidth(line)).toBeLessThanOrEqual(width);
 };
 
-const tableSource = ["| Name | Value |", "| --- | --- |", ...Array.from({ length: 30 }, (_, i) => `| row-${i + 1} | value-${i + 1} |`)].join("\n");
+const tableSource = ["| Name | Value |", "| --- | --- |", ...Array.from({ length: 30 }, (_, i) => `| row-${i + 1} | value-${i + 1}-${"x".repeat(100)} |`)].join("\n");
 
 describe("windowed renderers", () => {
   it("windows code, keeps stable line numbers, and supports end, home, and page scrolling", () => {
@@ -49,6 +49,49 @@ describe("windowed renderers", () => {
     lines = renderer.render(width);
     expect(lines[2]).toContain(" 11 │ code-line-11");
     assertWidthSafe(lines);
+  });
+
+  it("scrolls long code lines horizontally while keeping the line number fixed", () => {
+    const source = "0123456789".repeat(20);
+    const renderer = new GenericCodeRendererComponent("code", source, mockTheme, onClose, viewportHeight);
+    const initial = renderer.render(40);
+    expect(visibleWidth(initial[2])).toBeLessThanOrEqual(40);
+    expect(initial[2]).toMatch(/^\s*1 │ 0123456789/);
+
+    renderer.handleInput("l");
+    const scrolled = renderer.render(40);
+    expect(scrolled[2]).toMatch(/^\s*1 │ 4567890123/);
+    expect(visibleWidth(scrolled[2])).toBeLessThanOrEqual(40);
+
+    renderer.handleInput("h");
+    expect(renderer.render(40)[2]).toBe(initial[2]);
+  });
+
+  it("keeps the diff marker visible while scrolling long changed lines", () => {
+    const renderer = new DiffRendererComponent("+" + "0123456789".repeat(20), mockTheme, onClose, viewportHeight);
+    const initial = renderer.render(40);
+    expect(visibleWidth(initial[2])).toBeLessThanOrEqual(40);
+    expect(initial[2]).toMatch(/^\+0123456789/);
+
+    renderer.handleInput("l");
+    const scrolled = renderer.render(40);
+    expect(scrolled[2]).toMatch(/^\+4567890123/);
+    expect(visibleWidth(scrolled[2])).toBeLessThanOrEqual(40);
+
+    renderer.handleInput("h");
+    expect(renderer.render(40)[2]).toBe(initial[2]);
+  });
+
+  it("never splits a wide character across a horizontally scrolled code line", () => {
+    const renderer = new GenericCodeRendererComponent("code", "日本語コード", mockTheme, onClose, viewportHeight);
+    const initial = renderer.render(10)[2];
+    expect(initial).toContain("日本語");
+    expect(visibleWidth(initial)).toBeLessThanOrEqual(10);
+
+    renderer.handleInput("l");
+    const scrolled = renderer.render(10)[2];
+    expect(scrolled).toContain("語コー");
+    expect(visibleWidth(scrolled)).toBeLessThanOrEqual(10);
   });
 
   it("windows diff content and reaches the final line", () => {

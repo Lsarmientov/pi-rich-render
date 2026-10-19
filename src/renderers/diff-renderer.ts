@@ -1,5 +1,6 @@
 import type { Theme } from "@earendil-works/pi-coding-agent";
-import { matchesKey, truncateToWidth } from "@earendil-works/pi-tui";
+import { matchesKey, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import { clampHorizontalOffset, hscrollForKey, sliceColumns } from "./hscroll.js";
 import { formatRange, normalizedHeight, scrollForKey } from "./viewport.js";
 
 export class DiffRendererComponent {
@@ -7,6 +8,8 @@ export class DiffRendererComponent {
   private theme: Theme;
   private onClose: () => void;
   private scrollY = 0;
+  private scrollX = 0;
+  private horizontalWidth = 1;
   private viewportHeight: number;
   private onCopy?: () => Promise<void>;
   private status = "";
@@ -29,6 +32,15 @@ export class DiffRendererComponent {
       this.onClose();
       return;
     }
+    const horizontalOffset = hscrollForKey(data, {
+      offset: this.scrollX,
+      maxLineWidth: Math.max(0, ...this.lines.map((line) => visibleWidth(line))),
+      width: this.horizontalWidth,
+    });
+    if (horizontalOffset !== null) {
+      this.scrollX = horizontalOffset;
+      return;
+    }
     const offset = scrollForKey(data, {
       offset: this.scrollY,
       total: this.lines.length,
@@ -46,7 +58,7 @@ export class DiffRendererComponent {
       truncateToWidth(
         th.fg(
           "accent",
-          ` 🔄 Diff ${this.status ? `${this.status} ` : ""}${range} (${this.onCopy ? "c copy, " : ""}↑/↓ or j/k to scroll, PgUp/PgDn, g/G, Esc/q to close)`
+          ` 🔄 Diff ${this.status ? `${this.status} ` : ""}${range} (${this.onCopy ? "c copy, " : ""}←/→ or h/l, ↑/↓ or j/k to scroll, PgUp/PgDn, g/G, Esc/q to close)`
         ),
         width
       )
@@ -54,19 +66,32 @@ export class DiffRendererComponent {
     output.push("");
 
     const visibleLines = this.lines.slice(this.scrollY, this.scrollY + this.viewportHeight);
+    const maxLineWidth = Math.max(0, ...this.lines.map((line) => visibleWidth(line)));
+    this.horizontalWidth = width;
+    this.scrollX = clampHorizontalOffset(this.scrollX, maxLineWidth, width);
 
     for (const rawLine of visibleLines) {
-      let styled = rawLine;
+      const hasMarker =
+        (rawLine.startsWith("+") && !rawLine.startsWith("+++")) ||
+        (rawLine.startsWith("-") && !rawLine.startsWith("---")) ||
+        rawLine.startsWith(" ");
+      const marker = hasMarker ? rawLine[0] : "";
+      const body = hasMarker ? rawLine.slice(1) : rawLine;
+      const bodyWidth = Math.max(0, width - visibleWidth(marker));
+      const visibleBody = sliceColumns(body, this.scrollX, bodyWidth);
+      const visibleLine = marker + visibleBody;
+
+      let styled: string;
       if (rawLine.startsWith("+") && !rawLine.startsWith("+++")) {
-        styled = th.fg("success", rawLine);
+        styled = th.fg("success", visibleLine);
       } else if (rawLine.startsWith("-") && !rawLine.startsWith("---")) {
-        styled = th.fg("error", rawLine);
+        styled = th.fg("error", visibleLine);
       } else if (rawLine.startsWith("@@")) {
-        styled = th.fg("warning", rawLine);
+        styled = th.fg("warning", sliceColumns(rawLine, this.scrollX, width));
       } else if (rawLine.startsWith("diff ") || rawLine.startsWith("index ")) {
-        styled = th.bold(th.fg("accent", rawLine));
+        styled = th.bold(th.fg("accent", sliceColumns(rawLine, this.scrollX, width)));
       } else {
-        styled = th.fg("dim", rawLine);
+        styled = th.fg("dim", visibleLine);
       }
       output.push(truncateToWidth(styled, width));
     }

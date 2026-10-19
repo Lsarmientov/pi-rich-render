@@ -1,5 +1,6 @@
 import type { Theme } from "@earendil-works/pi-coding-agent";
-import { matchesKey, truncateToWidth } from "@earendil-works/pi-tui";
+import { matchesKey, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import { clampHorizontalOffset, hscrollForKey, sliceColumns } from "./hscroll.js";
 import { clampOffset, formatRange, normalizedHeight, scrollForKey } from "./viewport.js";
 
 export class DataFormatRendererComponent {
@@ -10,6 +11,8 @@ export class DataFormatRendererComponent {
   private theme: Theme;
   private onClose: () => void;
   private scrollY = 0;
+  private scrollX = 0;
+  private horizontalWidth = 1;
   private viewportHeight: number;
   private onCopy?: () => Promise<void>;
   private status = "";
@@ -62,6 +65,15 @@ export class DataFormatRendererComponent {
       return;
     }
     const currentLines = (this.showFormatted ? this.formattedSource : this.rawSource).split(/\r?\n/);
+    const horizontalOffset = hscrollForKey(data, {
+      offset: this.scrollX,
+      maxLineWidth: Math.max(0, ...currentLines.map((line) => visibleWidth(line))),
+      width: this.horizontalWidth,
+    });
+    if (horizontalOffset !== null) {
+      this.scrollX = horizontalOffset;
+      return;
+    }
     const offset = scrollForKey(data, {
       offset: this.scrollY,
       total: currentLines.length,
@@ -81,7 +93,7 @@ export class DataFormatRendererComponent {
       truncateToWidth(
         th.fg(
           "accent",
-          ` 📦 ${this.kind.toUpperCase()} ${modeLabel} ${this.status ? `${this.status} ` : ""}${range} (${this.onCopy ? "c copy, " : ""}'f' toggle format, ↑/↓ scroll, PgUp/PgDn, g/G, Esc/q close)`
+          ` 📦 ${this.kind.toUpperCase()} ${modeLabel} ${this.status ? `${this.status} ` : ""}${range} (${this.onCopy ? "c copy, " : ""}'f' toggle format, ←/→ or h/l, ↑/↓ scroll, PgUp/PgDn, g/G, Esc/q close)`
         ),
         width
       )
@@ -89,9 +101,13 @@ export class DataFormatRendererComponent {
     output.push("");
 
     const lines = activeLines.slice(this.scrollY, this.scrollY + this.viewportHeight);
+    const maxLineWidth = Math.max(0, ...activeLines.map((line) => visibleWidth(line)));
+    this.horizontalWidth = width;
+    this.scrollX = clampHorizontalOffset(this.scrollX, maxLineWidth, width);
 
     for (const line of lines) {
-      output.push(truncateToWidth(th.fg("text", line), width));
+      const visibleLine = sliceColumns(line, this.scrollX, width);
+      output.push(truncateToWidth(th.fg("text", visibleLine), width));
     }
 
     return output;

@@ -1,5 +1,6 @@
 import type { Theme } from "@earendil-works/pi-coding-agent";
 import { matchesKey, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import { clampHorizontalOffset, hscrollForKey, sliceColumns } from "./hscroll.js";
 import { formatRange, normalizedHeight, scrollForKey } from "./viewport.js";
 
 export class GenericCodeRendererComponent {
@@ -8,6 +9,8 @@ export class GenericCodeRendererComponent {
   private theme: Theme;
   private onClose: () => void;
   private scrollY = 0;
+  private scrollX = 0;
+  private horizontalWidth = 1;
   private viewportHeight: number;
   private onCopy?: () => Promise<void>;
   private status = "";
@@ -38,6 +41,15 @@ export class GenericCodeRendererComponent {
       this.onClose();
       return;
     }
+    const horizontalOffset = hscrollForKey(data, {
+      offset: this.scrollX,
+      maxLineWidth: Math.max(0, ...this.lines.map((line) => visibleWidth(line))),
+      width: this.horizontalWidth,
+    });
+    if (horizontalOffset !== null) {
+      this.scrollX = horizontalOffset;
+      return;
+    }
     const offset = scrollForKey(data, {
       offset: this.scrollY,
       total: this.lines.length,
@@ -51,7 +63,7 @@ export class GenericCodeRendererComponent {
     const output: string[] = [];
 
     const range = formatRange({ offset: this.scrollY, total: this.lines.length, height: this.viewportHeight });
-    const hint = `(↑/↓ or j/k to scroll, PgUp/PgDn, g/G, Esc/q to close${this.onCopy ? ", c copy" : ""})`;
+    const hint = `(${this.onCopy ? "c copy, " : ""}←/→ or h/l to scroll, ↑/↓ or j/k, PgUp/PgDn, g/G, Esc/q to close)`;
     const status = this.status ? `${this.status} ` : "";
     const fixedText = ` 📄  ${range} ${status}${hint}`;
     const title = truncateToWidth(this.title, Math.max(0, width - visibleWidth(fixedText)));
@@ -60,10 +72,19 @@ export class GenericCodeRendererComponent {
 
     const visibleLines = this.lines.slice(this.scrollY, this.scrollY + this.viewportHeight);
     const lineNumberWidth = String(this.lines.length).length;
+    const prefixWidth = visibleWidth(`${" ".repeat(lineNumberWidth)} │ `);
+    const contentWidth = Math.max(0, width - prefixWidth);
+    this.horizontalWidth = contentWidth;
+    this.scrollX = clampHorizontalOffset(
+      this.scrollX,
+      Math.max(0, ...this.lines.map((line) => visibleWidth(line))),
+      contentWidth
+    );
 
     for (let i = 0; i < visibleLines.length; i++) {
       const lineNum = String(this.scrollY + i + 1).padStart(lineNumberWidth, " ");
-      const formatted = `${th.fg("dim", lineNum)} │ ${th.fg("text", visibleLines[i])}`;
+      const rawText = sliceColumns(visibleLines[i], this.scrollX, contentWidth);
+      const formatted = `${th.fg("dim", lineNum)} │ ${th.fg("text", rawText)}`;
       output.push(truncateToWidth(formatted, width));
     }
 
