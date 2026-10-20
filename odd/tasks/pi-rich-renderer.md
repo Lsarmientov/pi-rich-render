@@ -141,9 +141,9 @@
    Goal: table/diff/data blocks match the reference UX (labels, colors, export formats).
    Tasks:
    - [x] F4.1 `table-exporter`: add CSV and Markdown exports alongside TSV/JSON; tests for quoting/escaping.
-   - [ ] F4.2 `diff-renderer`: filename header line, hunk context, +/- colors; tests for add/remove/context classification.
-   - [ ] F4.3 JSON/YAML/XML: pretty vs raw toggle; parse errors surface as plain text; copy stays raw-source.
-   - [ ] F4.4 `diagram-renderer`: keep text-only output; copy exports the original source; keep the raster limitation documented.
+   - [x] F4.2 `diff-renderer`: filename header line, hunk context, +/- colors; tests for add/remove/context classification.
+   - [x] F4.3 JSON/YAML/XML: pretty vs raw toggle; parse errors surface as plain text; copy stays raw-source.
+   - [x] F4.4 `diagram-renderer`: keep text-only output; copy exports the original source; keep the raster limitation documented.
    Acceptance: new exporters/renderers tested (RED first); `/rich copy` options extended and documented.
 
    ### F5 -- Packaging and distribution (Size: M)
@@ -184,7 +184,7 @@
    | F1 | done | `docs/spike-render-hooks.md` — verdict INLINE-OK for text/ANSI block transformation (hook `registerMarkdownTransformer`, typings-only, absent from `docs/*.md`); interactive affordances OVERLAY-ONLY (transformer returns `string`). |
    | F2 | done | Per-OS selection with availability probes (powershell/clip, pbcopy, wl-copy/xclip); OSC 52 fallback (`ESC ]52;c;<base64> BEL`) only when no local tool is found and gated on `PI_CLIPBOARD_OSC52` or SSH, with an explicit false value vetoing auto-detection; 19 deterministic clipboard tests plus an opt-in Windows integration test; `/rich list` copy errors notify instead of rejecting unhandled; Unicode fix: the Windows payload crosses the pipe as ASCII base64 and is decoded as UTF-8 inside PowerShell, because the previous raw UTF-8 pipe was decoded with the console code page and turned `í` into `├¡`; user verified the paste character for character. |
    | F3 | done | Overlay sizing (`maxHeight = max(4, rows - 6)` plus explicit terminal-derived width with a 6-column margin), vertical and horizontal windowing, keyboard parity, fullscreen-only mouse, and `c` copy with hint-line status; focused tests 17/17, `npm test` 82 passed (1 skipped), `npx tsc --noEmit` 0 errors. |
-   | F4 | in progress | F4.1 done — CSV and normalized Markdown table exports, selector options and README documentation added; focused tests 16/16, `npm test` 98 passed (1 skipped), `npx tsc --noEmit` 0 errors. |
+   | F4 | done | F4.1 CSV/Markdown exports; F4.2-F4.4 diff classification and styling, JSON formatting fallback/raw copy, and text-only byte-exact diagram copy; `tests/renderers.test.ts` 25/25, `npm test` 109 passed (1 skipped), `npx tsc --noEmit` 0 errors. |
    | F5 | not started | |
    | F6 | not started | |
 
@@ -217,3 +217,4 @@
    - L16: F3 closed. The README manual checklist now covers the overlay: no clipping at `maxHeight`, both scroll ends reachable, horizontal reading of wide lines with a fixed number gutter, `c` with its hint-line status, and mouse restricted to fullscreen. Component behavior is pinned by tests; the clipboard paste and the mouse paths still need a human pass in a real TUI.
    - L17: Second live report from the same session — `/rich view` still cut every line near column 80 on a wide terminal. Cause: the layout pinned `maxHeight` but never `width`, so Pi's overlay width fallback applied and the overlay could never use the terminal's real width; horizontal scrolling was readable but confined to that band. `src/overlay-layout.ts` now derives both dimensions from the terminal size, so the overlay uses the available width minus a small margin and never exceeds the terminal. The same report confirmed F3.1 by hand: the wheel scrolls, the `[ copy ]` click copies, and a plain drag produces no copy status, so F3.1 is verified in a live TUI.
    - L18: F4.1 — CSV and normalized Markdown table exports added with RFC 4180 quoting and alignment-aware Markdown, wired into the copy selector without touching the existing options.
+   - L19: F4 closed — diff lines are classified and styled by kind (file headers and hunk headers included), the JSON/YAML/XML viewer degrades to plain text with a notice when formatting fails while its copy stays raw, and the diagram viewer stays text-only with a byte-exact copy. Copy payloads were not changed anywhere.

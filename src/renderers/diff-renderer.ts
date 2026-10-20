@@ -5,6 +5,15 @@ import { clampHorizontalOffset, hscrollForKey, sliceColumns } from "./hscroll.js
 import { isCopyTargetHit, wheelLines } from "./mouse.js";
 import { clampOffset, formatRange, normalizedHeight, scrollForKey } from "./viewport.js";
 
+export function classifyDiffLine(line: string): "add" | "remove" | "context" | "file" | "hunk" | "meta" {
+  if (line.startsWith("diff --git") || line.startsWith("---") || line.startsWith("+++")) return "file";
+  if (line.startsWith("@@")) return "hunk";
+  if (line.startsWith("+") && !line.startsWith("+++")) return "add";
+  if (line.startsWith("-") && !line.startsWith("---")) return "remove";
+  if (["index ", "new file mode", "deleted file mode", "similarity index", "rename from", "rename to", "old mode", "new mode"].some((prefix) => line.startsWith(prefix))) return "meta";
+  return "context";
+}
+
 export class DiffRendererComponent {
   private lines: string[];
   private theme: Theme;
@@ -104,13 +113,14 @@ export class DiffRendererComponent {
       const visibleLine = marker + visibleBody;
 
       let styled: string;
-      if (rawLine.startsWith("+") && !rawLine.startsWith("+++")) {
+      const kind = classifyDiffLine(rawLine);
+      if (kind === "add") {
         styled = th.fg("success", visibleLine);
-      } else if (rawLine.startsWith("-") && !rawLine.startsWith("---")) {
+      } else if (kind === "remove") {
         styled = th.fg("error", visibleLine);
-      } else if (rawLine.startsWith("@@")) {
+      } else if (kind === "hunk") {
         styled = th.fg("warning", sliceColumns(rawLine, this.scrollX, width));
-      } else if (rawLine.startsWith("diff ") || rawLine.startsWith("index ")) {
+      } else if (kind === "file") {
         styled = th.bold(th.fg("accent", sliceColumns(rawLine, this.scrollX, width)));
       } else {
         styled = th.fg("dim", visibleLine);

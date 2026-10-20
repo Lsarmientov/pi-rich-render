@@ -8,6 +8,7 @@ import { clampOffset, formatRange, normalizedHeight, scrollForKey } from "./view
 export class DataFormatRendererComponent {
   private rawSource: string;
   private formattedSource: string;
+  private formatError?: string;
   private kind: "json" | "yaml" | "xml";
   private showFormatted = false;
   private theme: Theme;
@@ -43,7 +44,8 @@ export class DataFormatRendererComponent {
       try {
         const parsed = JSON.parse(text);
         return JSON.stringify(parsed, null, 2);
-      } catch {
+      } catch (error) {
+        this.formatError = error instanceof Error ? error.message : String(error);
         return text;
       }
     }
@@ -109,9 +111,11 @@ export class DataFormatRendererComponent {
 
     const activeLines = (this.showFormatted ? this.formattedSource : this.rawSource).split(/\r?\n/);
     const range = formatRange({ offset: this.scrollY, total: activeLines.length, height: this.viewportHeight });
+    const formatNotice = this.showFormatted && this.formatError ? `format unavailable: ${this.formatError}` : "";
+    const hintStatus = [formatNotice, this.status].filter(Boolean).join(" · ");
     const header = th.fg(
       "accent",
-      ` 📦 ${this.kind.toUpperCase()} ${modeLabel} ${this.status ? `${this.status} ` : ""}${range} (${this.onCopy ? "c copy, " : ""}'f' toggle format, ←/→ or h/l, ↑/↓ scroll, PgUp/PgDn, g/G, Esc/q close)`
+      ` 📦 ${this.kind.toUpperCase()} ${modeLabel} ${hintStatus ? `${hintStatus} ` : ""}${range} (${this.onCopy ? "c copy, " : ""}'f' toggle format, ←/→ or h/l, ↑/↓ scroll, PgUp/PgDn, g/G, Esc/q close)`
     );
     if (this.onCopy) {
       const label = "[ copy ]";

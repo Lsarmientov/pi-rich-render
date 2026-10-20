@@ -3,7 +3,7 @@ import type { Theme } from "@earendil-works/pi-coding-agent";
 import { visibleWidth } from "@earendil-works/pi-tui";
 import { GenericCodeRendererComponent } from "../src/renderers/code-renderer.js";
 import { TableRendererComponent } from "../src/renderers/table-renderer.js";
-import { DiffRendererComponent } from "../src/renderers/diff-renderer.js";
+import { classifyDiffLine, DiffRendererComponent } from "../src/renderers/diff-renderer.js";
 import { DataFormatRendererComponent } from "../src/renderers/json-yaml-xml-renderer.js";
 import { DiagramRendererComponent } from "../src/renderers/diagram-renderer.js";
 import { createRendererForBlock } from "../src/renderer-registry.js";
@@ -102,6 +102,31 @@ describe("windowed renderers", () => {
     expect(renderer.render(40)[2]).toMatch(/^\s*1 │ code-line-1/);
   });
 
+  it.each([
+    ["add", "+added line", "add"],
+    ["remove", "-removed line", "remove"],
+    ["context", " unchanged line", "context"],
+    ["file", "diff --git a/file b/file", "file"],
+    ["hunk", "@@ -1,2 +1,2 @@", "hunk"],
+    ["meta", "index 0123456..abcdef0 100644", "meta"],
+  ] as const)("classifies diff %s lines", (_name, line, expected) => {
+    expect(classifyDiffLine(line)).toBe(expected);
+  });
+
+  it("renders diff file lines as headers and keeps add/remove markers", () => {
+    const styledTheme = {
+      ...mockTheme,
+      fg: (color: string, text: string) => `${color}:${text}`,
+      bold: (text: string) => `bold:${text}`,
+    } as unknown as Theme;
+    const renderer = new DiffRendererComponent("diff --git a/file b/file\n+added\n-removed", styledTheme, onClose);
+    const lines = renderer.render(width);
+
+    expect(lines[2]).toBe("bold:accent:diff --git a/file b/file");
+    expect(lines[3]).toBe("success:+added");
+    expect(lines[4]).toBe("error:-removed");
+  });
+
   it("keeps the diff marker visible while scrolling long changed lines", () => {
     const renderer = new DiffRendererComponent("+" + "0123456789".repeat(20), mockTheme, onClose, viewportHeight);
     const initial = renderer.render(40);
@@ -142,6 +167,36 @@ describe("windowed renderers", () => {
     assertWidthSafe(lines);
   });
 
+  it("shows invalid JSON source and a formatting-unavailable notice", () => {
+    const source = '{"broken": }';
+    const renderer = new DataFormatRendererComponent(source, "json", mockTheme, onClose, viewportHeight);
+
+    renderer.handleInput("f");
+    const lines = renderer.render(160);
+    expect(lines[0]).toContain("format unavailable:");
+    expect(lines[2]).toBe(source);
+  });
+
+  it("toggles valid JSON between pretty and raw and always copies the exact source", async () => {
+    const source = '{"a":1,"nested":{"b":true}}';
+    const copySpy = vi.fn();
+    const onCopy = vi.fn(() => copySpy(source));
+    const renderer = new DataFormatRendererComponent(source, "json", mockTheme, onClose, viewportHeight, onCopy);
+
+    renderer.handleInput("f");
+    expect(renderer.render(width).slice(2).join("\n")).toContain('"a": 1');
+    renderer.handleInput("c");
+    await Promise.resolve();
+    expect(copySpy).toHaveBeenLastCalledWith(source);
+
+    renderer.handleInput("f");
+    expect(renderer.render(width)[2]).toBe(source);
+    renderer.handleInput("c");
+    await Promise.resolve();
+    expect(copySpy).toHaveBeenCalledTimes(2);
+    expect(copySpy).toHaveBeenLastCalledWith(source);
+  });
+
   it("windows JSON content and reaches the final field", () => {
     const source = JSON.stringify(Object.fromEntries(Array.from({ length: 20 }, (_, i) => [`field-${i + 1}`, i + 1])));
     const renderer = new DataFormatRendererComponent(source, "json", mockTheme, onClose, viewportHeight);
@@ -154,6 +209,27 @@ describe("windowed renderers", () => {
     expect(lines.some((line) => line.includes("field-20"))).toBe(true);
     expect(lines.some((line) => line.includes('"field-1":'))).toBe(false);
     assertWidthSafe(lines);
+  });
+
+  it("renders Mermaid source as text without graphics", () => {
+    const source = "flowchart TD\n  A[Start] --> B[End]";
+    const renderer = new DiagramRendererComponent("diagram", source, "mermaid", mockTheme, onClose, viewportHeight);
+    const lines = renderer.render(width);
+
+    expect(lines.slice(2)).toEqual(["flowchart TD", "  A[Start] --> B[End]"]);
+  });
+
+  it("copies Mermaid source byte for byte, including its original newlines", async () => {
+    const source = "flowchart TD\r\n  A[Start] --> B[End]\r\n";
+    const copySpy = vi.fn();
+    const onCopy = vi.fn(() => copySpy(source));
+    const renderer = new DiagramRendererComponent("diagram", source, "mermaid", mockTheme, onClose, viewportHeight, onCopy);
+
+    renderer.handleInput("c");
+    await Promise.resolve();
+    expect(copySpy).toHaveBeenCalledTimes(1);
+    expect(copySpy).toHaveBeenCalledWith(source);
+    expect(copySpy.mock.calls[0][0]).toBe(source);
   });
 
   it("windows diagram content and reaches the final line", () => {
