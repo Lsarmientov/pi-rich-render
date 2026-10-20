@@ -2,7 +2,7 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { getContextBlocks, getLastContextBlock } from "./context-reader.js";
 import { selectBlock, formatBlockOption } from "./block-selector.js";
 import { copyToClipboard } from "./clipboard-adapter.js";
-import { tableToTSV, tableToJSON } from "./exporters/table-exporter.js";
+import { tableToTSV, tableToJSON, tableToCSV, tableToMarkdown, parseTableData } from "./exporters/table-exporter.js";
 import { createRendererForBlock } from "./renderer-registry.js";
 import { overlayLayout } from "./overlay-layout.js";
 
@@ -34,7 +34,7 @@ export default function (pi: ExtensionAPI) {
           let textToCopy = target.source;
 
           if (target.kind === "table") {
-            const formatOptions = ["1. Markdown (Source)", "2. TSV (Spreadsheets / Excel)", "3. JSON (Structured data)"];
+            const formatOptions = ["1. Markdown (Source)", "2. TSV (Spreadsheets / Excel)", "3. JSON (Structured data)", "4. CSV (Spreadsheets / Excel)", "5. Markdown (normalized)"];
             const choice = await ctx.ui.select("Choose export format for table:", formatOptions);
             if (!choice) return;
 
@@ -47,6 +47,12 @@ export default function (pi: ExtensionAPI) {
                 return;
               }
               textToCopy = json;
+            } else if (choice.includes("CSV")) {
+              const data = parseTableData(target.source);
+              if (data) textToCopy = tableToCSV(data);
+            } else if (choice.includes("Markdown (normalized)")) {
+              const data = parseTableData(target.source);
+              if (data) textToCopy = tableToMarkdown(data);
             }
           }
 
@@ -69,7 +75,7 @@ export default function (pi: ExtensionAPI) {
 
           let textToCopy = lastBlock.source;
           if (lastBlock.kind === "table") {
-            const formatOptions = ["1. Markdown (Source)", "2. TSV (Spreadsheets / Excel)", "3. JSON (Structured data)"];
+            const formatOptions = ["1. Markdown (Source)", "2. TSV (Spreadsheets / Excel)", "3. JSON (Structured data)", "4. CSV (Spreadsheets / Excel)", "5. Markdown (normalized)"];
             const choice = await ctx.ui.select("Choose export format for table:", formatOptions);
             if (!choice) return;
 
@@ -82,6 +88,12 @@ export default function (pi: ExtensionAPI) {
                 return;
               }
               textToCopy = json;
+            } else if (choice.includes("CSV")) {
+              const data = parseTableData(lastBlock.source);
+              if (data) textToCopy = tableToCSV(data);
+            } else if (choice.includes("Markdown (normalized)")) {
+              const data = parseTableData(lastBlock.source);
+              if (data) textToCopy = tableToMarkdown(data);
             }
           }
 

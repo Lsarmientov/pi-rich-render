@@ -111,6 +111,34 @@ export function tableToTSV(tableMarkdown: string): string {
 }
 
 /**
+ * Converts structured table data to RFC 4180-style CSV.
+ */
+export function tableToCSV(data: TableData): string {
+  const encodeField = (field: string): string => {
+    const escaped = field.replace(/"/g, '""');
+    return /[,"\r\n]|^\s|\s$/.test(field) ? `"${escaped}"` : escaped;
+  };
+
+  return [data.headers, ...data.rows].map((row) => row.map(encodeField).join(",")).join("\n");
+}
+
+/**
+ * Converts structured table data to normalized Markdown table syntax.
+ */
+export function tableToMarkdown(data: TableData): string {
+  const formatCell = (cell: string): string => cell.replace(/\|/g, "\\|").replace(/\r\n|\r|\n/g, "<br>");
+  const formatRow = (row: string[]): string => `| ${row.map(formatCell).join(" | ")} |`;
+  const delimiter = data.alignments.map((alignment) => {
+    const dashes = "---";
+    if (alignment === "center") return `:${dashes}:`;
+    if (alignment === "right") return `${dashes}:`;
+    return `:${dashes}`;
+  });
+
+  return [formatRow(data.headers), formatRow(delimiter), ...data.rows.map(formatRow)].join("\n");
+}
+
+/**
  * Converts a markdown table to JSON array of objects.
  * Returns undefined if headers are ambiguous, empty or duplicate.
  */

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { parseMarkdownBlocks } from "../src/parser.js";
-import { tableToTSV, tableToJSON, parseTableData } from "../src/exporters/table-exporter.js";
+import { tableToTSV, tableToJSON, parseTableData, tableToCSV, tableToMarkdown, type TableData } from "../src/exporters/table-exporter.js";
 
 describe("Table Detection and Exporting", () => {
   const sampleMarkdownTable = [
@@ -66,5 +66,76 @@ describe("Table Detection and Exporting", () => {
 
     const data = parseTableData(escapedTable);
     expect(data?.rows[0][0]).toBe("a | b");
+  });
+
+  const csvData = (value: string): TableData => ({
+    headers: ["Value"],
+    alignments: ["left"],
+    rows: [[value]],
+  });
+
+  it("should leave plain CSV fields unquoted", () => {
+    expect(tableToCSV(csvData("plain"))).toBe("Value\nplain");
+  });
+
+  it("should quote CSV fields containing a comma", () => {
+    expect(tableToCSV(csvData("a,b"))).toBe('Value\n"a,b"');
+  });
+
+  it("should quote CSV fields containing a double quote and double the quote", () => {
+    expect(tableToCSV(csvData('say "hi"'))).toBe('Value\n"say ""hi"""');
+  });
+
+  it("should quote CSV fields containing a newline or carriage return", () => {
+    expect(tableToCSV(csvData("line one\nline two"))).toBe('Value\n"line one\nline two"');
+    expect(tableToCSV(csvData("line one\rline two"))).toBe('Value\n"line one\rline two"');
+  });
+
+  it("should quote CSV fields with leading or trailing whitespace", () => {
+    expect(tableToCSV(csvData(" leading"))).toBe('Value\n" leading"');
+    expect(tableToCSV(csvData("trailing "))).toBe('Value\n"trailing "');
+  });
+
+  it("should export a header-only CSV table as just the header line", () => {
+    expect(tableToCSV({ headers: ["A", "B"], alignments: ["left", "right"], rows: [] })).toBe("A,B");
+  });
+
+  it("should render each alignment variant in the Markdown delimiter row", () => {
+    const data: TableData = {
+      headers: ["Left", "Center", "Right"],
+      alignments: ["left", "center", "right"],
+      rows: [],
+    };
+    expect(tableToMarkdown(data)).toBe("| Left | Center | Right |\n| :--- | :---: | ---: |");
+  });
+
+  it("should escape pipes in every Markdown table cell", () => {
+    const data: TableData = {
+      headers: ["A|B"],
+      alignments: ["left"],
+      rows: [["C|D"]],
+    };
+    expect(tableToMarkdown(data)).toBe("| A\\|B |\n| :--- |\n| C\\|D |");
+  });
+
+  it("should replace newlines in Markdown cells with <br>", () => {
+    const data: TableData = {
+      headers: ["A"],
+      alignments: ["left"],
+      rows: [["line one\nline two"]],
+    };
+    expect(tableToMarkdown(data)).toBe("| A |\n| :--- |\n| line one<br>line two |");
+  });
+
+  it("should not mutate input data when exporting CSV or Markdown", () => {
+    const data: TableData = {
+      headers: ["A|B"],
+      alignments: ["center"],
+      rows: [["x,y"]],
+    };
+    const original = structuredClone(data);
+    tableToCSV(data);
+    tableToMarkdown(data);
+    expect(data).toEqual(original);
   });
 });

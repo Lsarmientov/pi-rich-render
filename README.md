@@ -37,7 +37,7 @@ Copy-Item -Recurse "c:\Daniel\Proyectos\pi-rich-render" ".pi\extensions\pi-rich-
 | Comando | Acción |
 |---|---|
 | `/rich` | Muestra la ayuda interactiva y lista de subcomandos. |
-| `/rich copy` | Abre el selector interactivo (`ctx.ui.select`) para elegir un bloque y copiarlo limpiamente al portapapeles. Si es una tabla, permite elegir entre Markdown, TSV o JSON. |
+| `/rich copy` | Abre el selector interactivo (`ctx.ui.select`) para elegir un bloque y copiarlo limpiamente al portapapeles. Si es una tabla, permite elegir entre Markdown fuente, TSV, JSON, CSV o Markdown normalizado. |
 | `/rich last` | Copia de inmediato el último bloque compatible del contexto activo sin ambigüedades. |
 | `/rich list` | Enumera todos los bloques detectados con tipo, lenguaje y conteo de líneas, permitiendo copiar o abrir preview directamente. |
 | `/rich view` | Abre una vista temporal ampliada en overlay dentro de la TUI (`{ overlay: true }`) con scroll vertical u horizontal y navegación por teclado. |
@@ -57,6 +57,8 @@ Windows usa PowerShell `Set-Clipboard` y recurre a `clip` si no está disponible
   - Detección precisa de encabezados y alineaciones (`left`, `center`, `right`).
   - **Exportación TSV**: Formato delimitado por tabulaciones ideal para pegar en Excel o Google Sheets.
   - **Exportación JSON**: Conversión segura a array de objetos (se bloquea si hay encabezados duplicados o vacíos para evitar inventar propiedades).
+  - **Exportación CSV**: Formato compatible con hojas de cálculo, con comillas según RFC 4180.
+  - **Markdown normalizado**: Conserva las alineaciones, escapa pipes y reemplaza saltos de línea dentro de las celdas.
   - Preview interactivo con bordes limpios y scroll horizontal/vertical (`h/j/k/l`).
 - **Diffs**:
   - Resaltado de adiciones (`+`) y eliminaciones (`-`) en el visor.
@@ -91,8 +93,8 @@ npm test
    - Pega en un editor externo (VS Code o Notepad) y confirma que no haya fences ` ``` `, números de línea ni bordes.
 3. **Exportación de tabla**:
    - Pídele al agente: *"Muestra una tabla con columnas ID, Nombre y Rol"*.
-   - Ejecuta `/rich copy`. Selecciona la opción `2. TSV (Spreadsheets / Excel)`.
-   - Pega en Excel y verifica que cada dato quede en su celda correspondiente.
+   - Ejecuta `/rich copy` o `/rich last` y selecciona la opción `2. TSV (Spreadsheets / Excel)` o `4. CSV (Spreadsheets / Excel)`.
+   - Pega en Excel y verifica que cada dato quede en su celda correspondiente. La opción `5. Markdown (normalized)` conserva las alineaciones y escapa los pipes.
 4. **Vista interactiva en overlay**:
    - Abre con `/rich view` un bloque de código de 100 o más líneas (también puedes abrir el preview desde `/rich list`). Confirma que el overlay no exceda la terminal, que `PgDn` llegue al final, `g` al inicio y `G` al final, y que la última línea sea alcanzable y se vea completa, sin perder contenido.
    - Prueba el scroll vertical con `↑`/`↓` y `j`/`k`, y por página con `PgUp`/`PgDn`; `Home`/`g` deben ir al inicio y `End`/`G` al final. Presiona `Esc` o `q` para cerrar.
