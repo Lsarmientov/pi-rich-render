@@ -17,6 +17,10 @@
 ```bash
 pi --extension c:/Daniel/Proyectos/pi-rich-render/src/extension-entrypoint.ts
 ```
+Este comando desde el código fuente sigue funcionando sin compilar. Al instalar desde un clon, ejecuta `npm run build` una vez antes de que exista la entrada compilada que carga Pi.
+
+### Instalación empaquetada
+Una vez publicado, instala el paquete con `pi install npm:pi-rich-renderer@0.2.0`. El paquete incluye la entrada compilada y sus fuentes.
 
 ### Instalación permanente a nivel de usuario:
 Copia la carpeta de la extensión o crea un symlink en el directorio de extensiones de Pi:

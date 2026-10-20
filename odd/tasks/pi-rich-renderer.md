@@ -1,8 +1,8 @@
 # Feature: pi-rich-renderer — v0.2 plan
 
    Repo: https://github.com/Lsarmientov/pi-rich-render · Branch: `main` · Package: `pi-rich-renderer` (Pi coding-agent extension)
-   Status: v0.1 shipped; the v0.2 phases below are NOT started. This document is the self-contained handoff for the models implementing v0.2: read it
- fully before acting and update `## Progress` as tasks complete. It replaces the v0.1 record, which remains in git history.
+   Status: v0.1 shipped; v0.2 implementation is closed, with F5.4 and release delivery decisions remaining open. This document is the self-contained
+ handoff for the v0.2 work. It replaces the v0.1 record, which remains in git history.
 
    ## Objective
    Make the extension handle rich content like a first-class citizen of the Pi TUI: code, tables, diffs, JSON/YAML/XML and diagram sources, each with
@@ -149,17 +149,17 @@
    ### F5 -- Packaging and distribution (Size: M)
    Goal: clean install paths for real users.
    Tasks:
-   - [ ] F5.1 Check `docs/packages.md` for the supported extension distribution route; follow it or document the gap.
-   - [ ] F5.2 npm readiness: `files` whitelist, version `0.2.0`, `npm pack` dry-run inspection (artifact contains only intended files).
-   - [ ] F5.3 README: update install/commands/limitations (Spanish); document OSC 52 caveats and fullscreen-only mouse behavior.
+   - [x] F5.1 Check `docs/packages.md` for the supported extension distribution route; follow it or document the gap.
+   - [x] F5.2 npm readiness: `files` whitelist, version `0.2.0`, `npm pack` dry-run inspection (artifact contains only intended files).
+   - [x] F5.3 README: update install/commands/limitations (Spanish); document OSC 52 caveats and fullscreen-only mouse behavior.
    - [ ] F5.4 Clean-environment install verification (fresh HOME or second machine): symlink install -> `/rich` smoke test.
    Acceptance: `npm pack` artifact reviewed; fresh install works per README.
 
    ### F6 -- Release (Size: S)
    Tasks:
-   - [ ] F6.1 Add `CHANGELOG.md`; tag `v0.2.0`; push the tag.
+   - [ ] F6.1 `CHANGELOG.md` exists; tagging `v0.2.0` and pushing the tag are user delivery decisions.
    - [ ] F6.2 Final acceptance pass: full test suite + README manual checklist; record results.
-   - [ ] F6.3 Update this document: mark phase statuses, close v0.2, open notes for v0.3.
+   - [x] F6.3 Update this document: mark phase statuses, close v0.2, open notes for v0.3.
    Acceptance: tag exists; suite + checklist green; Progress closed.
 
    ## Global acceptance criteria
@@ -177,6 +177,9 @@
    - Dev-dependency versions are wildcards (`*`); API drift is possible -- consider pinning during F0/F5.
    - Single-maintainer project: keep evidence in-repo so any model or session can resume.
 
+   ## v0.3 notes
+   - Inline code/table/diff affordances remain a candidate for a separately scoped spec; the current supported path remains the overlay command model for interactive affordances.
+
    ## Progress
    | Phase | Status | Evidence |
    | --- | --- | --- |
@@ -185,8 +188,8 @@
    | F2 | done | Per-OS selection with availability probes (powershell/clip, pbcopy, wl-copy/xclip); OSC 52 fallback (`ESC ]52;c;<base64> BEL`) only when no local tool is found and gated on `PI_CLIPBOARD_OSC52` or SSH, with an explicit false value vetoing auto-detection; 19 deterministic clipboard tests plus an opt-in Windows integration test; `/rich list` copy errors notify instead of rejecting unhandled; Unicode fix: the Windows payload crosses the pipe as ASCII base64 and is decoded as UTF-8 inside PowerShell, because the previous raw UTF-8 pipe was decoded with the console code page and turned `í` into `├¡`; user verified the paste character for character. |
    | F3 | done | Overlay sizing (`maxHeight = max(4, rows - 6)` plus explicit terminal-derived width with a 6-column margin), vertical and horizontal windowing, keyboard parity, fullscreen-only mouse, and `c` copy with hint-line status; focused tests 17/17, `npm test` 82 passed (1 skipped), `npx tsc --noEmit` 0 errors. |
    | F4 | done | F4.1 CSV/Markdown exports; F4.2-F4.4 diff classification and styling, JSON formatting fallback/raw copy, and text-only byte-exact diagram copy; `tests/renderers.test.ts` 25/25, `npm test` 109 passed (1 skipped), `npx tsc --noEmit` 0 errors. |
-   | F5 | not started | |
-   | F6 | not started | |
+   | F5 | in progress (F5.4 open) | v0.2.0; `files` whitelist (`dist`, `index.ts`, `src`); clean + `prepack`; esbuild 0.28.2 pinned; peer dependencies declare both host packages with `*` per the Pi package route; manifest test pins the distribution route; 38 packed files; Pi npm route `pi install npm:pi-rich-renderer@0.2.0` via `pi.extensions`. |
+   | F6 | partial (F6.1 delivery decisions open; F6.2 checklist unverified; F6.3 done) | `CHANGELOG.md` added; `npm test` 114 passed (1 skipped), `npx tsc --noEmit` 0 errors; README manual checklist and F5.4 remain open; no tag or push performed. |
 
    ## Checks
    ```
@@ -218,3 +221,6 @@
    - L17: Second live report from the same session — `/rich view` still cut every line near column 80 on a wide terminal. Cause: the layout pinned `maxHeight` but never `width`, so Pi's overlay width fallback applied and the overlay could never use the terminal's real width; horizontal scrolling was readable but confined to that band. `src/overlay-layout.ts` now derives both dimensions from the terminal size, so the overlay uses the available width minus a small margin and never exceeds the terminal. The same report confirmed F3.1 by hand: the wheel scrolls, the `[ copy ]` click copies, and a plain drag produces no copy status, so F3.1 is verified in a live TUI.
    - L18: F4.1 — CSV and normalized Markdown table exports added with RFC 4180 quoting and alignment-aware Markdown, wired into the copy selector without touching the existing options.
    - L19: F4 closed — diff lines are classified and styled by kind (file headers and hunk headers included), the JSON/YAML/XML viewer degrades to plain text with a notice when formatting fails while its copy stays raw, and the diagram viewer stays text-only with a byte-exact copy. Copy payloads were not changed anywhere.
+   - L20: F5.1-F5.3 — the package now ships `dist` plus the jiti entry and its sources, with `clean` + `prepack` so a published artifact never carries stale build output and `dist/tests` is no longer emitted, and esbuild is pinned exactly. `npm pack --dry-run` lists only the intended files. F5.4 (fresh-environment symlink install) stays open for a human pass.
+   - L21: F5 route completed — an independent verifier read `docs/packages.md:88` and found the host-provided packages were not declared as peer dependencies; both are now declared with a `"*"` range and pinned by a manifest test. `npm pack --dry-run` was verified independently: 38 files, 129,757 B unpacked, only package.json, README.md, index.ts, src/** and dist/**, and nothing from tests, odd, docs or node_modules; the build is byte-reproducible (49,934 B bundle).
+   - L22: F6 partially closed — `CHANGELOG.md` added for 0.2.0, the release acceptance recorded, and the plan closed for v0.2 with F5.4 (fresh-environment install) and the tag plus push left to the user as delivery decisions.
